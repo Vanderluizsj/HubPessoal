@@ -27,6 +27,8 @@ src/
 
 Com o SQL Server ativo no Docker:
 ```powershell
+iniciar-hub.bat
+# ou caso tenha permissão no PowerShell:
 .\iniciar-hub.ps1
 ```
 Esse script inicializa automaticamente:

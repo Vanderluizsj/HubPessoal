@@ -4,11 +4,10 @@ Este guia prático explica como executar o projeto, navegar pela documentação 
 
 ---
 
-## 1. Como Executar a Aplicação Localmente
+### Inicialização Rápida (Recomendado)
+Basta dar um duplo-clique no arquivo **`iniciar-hub.bat`** na raiz do projeto (ou rodar `iniciar-hub.bat` no CMD/PowerShell). Ele sobe a API, o MVC e o Blazor em janelas separadas e abre todos os links no seu navegador automaticamente, sem restrições de política do PowerShell.
 
-### Pré-requisitos
-- .NET 10 SDK instalado (`dotnet --version`)
-- Docker Desktop (com container SQL Server) ou instância local do SQL Server
+---
 
 ### Passo 1: Subir o Banco de Dados no Docker (se necessário)
 Caso ainda não tenha um container SQL Server rodando:
