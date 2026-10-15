@@ -1,5 +1,5 @@
 @{
-    var perfil = PerfilAccessor.Value;
+    var perfil = await PerfilProvider.GetPerfilAsync();
     ViewData["Title"] = "Contato";
 }
 <section class="container secao">
@@ -35,6 +35,16 @@
                     <h2 class="h5">GitHub</h2>
                     <span class="texto-suave">Veja meus repositórios</span>
                 </a>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(perfil.Telefone))
+        {
+            <div class="col-md-4">
+                <div class="hub-card contato-card">
+                    <i class="bi bi-telephone-fill"></i>
+                    <h2 class="h5">Telefone / WhatsApp</h2>
+                    <span class="texto-suave">@perfil.Telefone</span>
+                </div>
             </div>
         }
     </div>

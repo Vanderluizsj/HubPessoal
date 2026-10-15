@@ -1,5 +1,5 @@
 @{
-    var p = PerfilAccessor.Value;
+    var p = await PerfilProvider.GetPerfilAsync();
 }
 <div class="hub-social">
     @if (!string.IsNullOrWhiteSpace(p.GitHub))

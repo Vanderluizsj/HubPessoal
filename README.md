@@ -52,8 +52,10 @@ Esse script inicializa automaticamente:
 ### ⚙️ Painel de Gestão (Blazor)
 - `/` ou `/admin` — Dashboard com contadores em tempo real (Projetos, Tecnologias, Posts, Trajetória).
 - `/projetos` — Gerenciador de projetos com busca reativa, criação, edição e exclusão via API.
-- `/tecnologias` — Listagem agrupada por categoria e nível.
-- `/posts` — Gerenciamento de artigos do blog.
+- `/tecnologias` — Gerenciamento de tecnologias agrupadas por categoria e nível.
+- `/posts` — Gerenciamento e publicação de artigos do blog.
+- `/trajetoria` — Gestão completa de experiências profissionais e formação/cursos acadêmicos.
+- `/perfil` — Gestão de dados biográficos, links sociais (GitHub, LinkedIn) e canais de contato com prévia em tempo real.
 
 ---
 
@@ -61,5 +63,5 @@ Esse script inicializa automaticamente:
 
 - [x] **Etapa 1:** Estrutura inicial (Domain, Application, Infrastructure, SQL Server e MVC)
 - [x] **Etapa 2:** Criação da Web API RESTful com OpenAPI + Scalar e desacoplamento do MVC via HTTP
-- [x] **Etapa 3:** Criação do painel administrativo com **Blazor** (`Vanderluiz.Hub.Blazor`) com Dashboard e CRUD de Projetos
+- [x] **Etapa 3:** Criação do painel administrativo com **Blazor** (`Vanderluiz.Hub.Blazor`) com Dashboard e CRUD completo de Projetos, Tecnologias, Posts, Trajetória e Perfil/Contato
 - [ ] **Etapa 4:** Recursos avançados (Autenticação JWT / Cookie Identity no admin, suporte a Markdown nos posts, deploy em cloud)

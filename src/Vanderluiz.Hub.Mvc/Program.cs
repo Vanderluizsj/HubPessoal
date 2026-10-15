@@ -34,6 +34,7 @@ if (usarApi)
     builder.Services.AddHttpClient<ITecnologiaService, TecnologiaHttpService>(ConfigurarClient);
     builder.Services.AddHttpClient<IPostService, PostHttpService>(ConfigurarClient);
     builder.Services.AddHttpClient<ITrajetoriaService, TrajetoriaHttpService>(ConfigurarClient);
+    builder.Services.AddHttpClient<IPerfilService, PerfilHttpService>(ConfigurarClient);
 }
 else
 {
@@ -46,6 +47,8 @@ else
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(connectionString);
 }
+
+builder.Services.AddScoped<Vanderluiz.Hub.Mvc.Services.DynamicPerfilProvider>();
 
 var app = builder.Build();
 

@@ -12,6 +12,7 @@ public class HubDbContext : DbContext
     public DbSet<Experiencia> Experiencias => Set<Experiencia>();
     public DbSet<Formacao> Formacoes => Set<Formacao>();
     public DbSet<Post> Posts => Set<Post>();
+    public DbSet<PerfilConfig> Perfis => Set<PerfilConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddScoped<ITecnologiaService, TecnologiaService>();
         services.AddScoped<IPostService, PostService>();
         services.AddScoped<ITrajetoriaService, TrajetoriaService>();
+        services.AddScoped<IPerfilService, PerfilService>();
         return services;
     }
 }

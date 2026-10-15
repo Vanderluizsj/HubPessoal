@@ -1,6 +1,6 @@
 @model HomeViewModel
 @{
-    var perfil = PerfilAccessor.Value;
+    var perfil = await PerfilProvider.GetPerfilAsync();
 }
 
 <section class="hero">

@@ -1,5 +1,5 @@
 @{
-    var perfil = PerfilAccessor.Value;
+    var perfil = await PerfilProvider.GetPerfilAsync();
     var path = Context.Request.Path.Value ?? "/";
     string Ativo(string prefixo) =>
         (prefixo == "/" ? path == "/" : path.StartsWith(prefixo, StringComparison.OrdinalIgnoreCase)) ? "active" : "";

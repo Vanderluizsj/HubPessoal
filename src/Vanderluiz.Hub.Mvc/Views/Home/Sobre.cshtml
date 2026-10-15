@@ -1,5 +1,5 @@
 @{
-    var perfil = PerfilAccessor.Value;
+    var perfil = await PerfilProvider.GetPerfilAsync();
     ViewData["Title"] = "Sobre";
 }
 <section class="container secao">

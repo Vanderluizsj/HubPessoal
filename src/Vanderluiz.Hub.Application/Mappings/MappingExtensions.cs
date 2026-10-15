@@ -29,5 +29,8 @@ public static class MappingExtensions
     public static PostResumoDto ToResumoDto(this Post p) => new(p.Id, p.Titulo, p.Slug, p.Resumo, p.PublicadoEm);
 
     public static PostDto ToDto(this Post p) => new(p.Id, p.Titulo, p.Slug, p.Resumo, p.Conteudo, p.PublicadoEm);
+
+    public static PerfilDto ToDto(this PerfilConfig p) =>
+        new(p.Id, p.Nome, p.Titulo, p.Bio, p.Localizacao, p.Email, p.GitHub, p.LinkedIn, p.FotoUrl, p.Telefone);
 }
 

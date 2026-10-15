@@ -191,15 +191,105 @@ public class HubApiClient
     }
 
     // ==========================================
-    // TRAJETÓRIA
+    // TRAJETÓRIA - EXPERIÊNCIAS
     // ==========================================
     public async Task<IReadOnlyList<ExperienciaDto>> ListarExperienciasAsync(CancellationToken ct = default)
     {
         return await _http.GetFromJsonAsync<IReadOnlyList<ExperienciaDto>>("/api/trajetoria/experiencias", ct) ?? [];
     }
 
+    public async Task<ExperienciaDto?> ObterExperienciaPorIdAsync(int id, CancellationToken ct = default)
+    {
+        var resposta = await _http.GetAsync($"/api/trajetoria/experiencias/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<ExperienciaDto>(cancellationToken: ct);
+    }
+
+    public async Task<ExperienciaDto> CriarExperienciaAsync(ExperienciaInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Post, "/api/trajetoria/experiencias", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<ExperienciaDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao criar experiência na API.");
+    }
+
+    public async Task<bool> AtualizarExperienciaAsync(int id, ExperienciaInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Put, $"/api/trajetoria/experiencias/{id}", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    public async Task<bool> RemoverExperienciaAsync(int id, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Delete, $"/api/trajetoria/experiencias/{id}");
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    // ==========================================
+    // TRAJETÓRIA - FORMAÇÕES
+    // ==========================================
     public async Task<IReadOnlyList<FormacaoDto>> ListarFormacoesAsync(CancellationToken ct = default)
     {
         return await _http.GetFromJsonAsync<IReadOnlyList<FormacaoDto>>("/api/trajetoria/formacoes", ct) ?? [];
+    }
+
+    public async Task<FormacaoDto?> ObterFormacaoPorIdAsync(int id, CancellationToken ct = default)
+    {
+        var resposta = await _http.GetAsync($"/api/trajetoria/formacoes/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<FormacaoDto>(cancellationToken: ct);
+    }
+
+    public async Task<FormacaoDto> CriarFormacaoAsync(FormacaoInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Post, "/api/trajetoria/formacoes", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<FormacaoDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao criar formação na API.");
+    }
+
+    public async Task<bool> AtualizarFormacaoAsync(int id, FormacaoInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Put, $"/api/trajetoria/formacoes/{id}", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    public async Task<bool> RemoverFormacaoAsync(int id, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Delete, $"/api/trajetoria/formacoes/{id}");
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    // ==========================================
+    // PERFIL & CONTATO
+    // ==========================================
+    public async Task<PerfilDto?> ObterPerfilAsync(CancellationToken ct = default)
+    {
+        return await _http.GetFromJsonAsync<PerfilDto>("/api/perfil", ct);
+    }
+
+    public async Task<PerfilDto> AtualizarPerfilAsync(PerfilInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Put, "/api/perfil", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<PerfilDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao atualizar perfil na API.");
     }
 }

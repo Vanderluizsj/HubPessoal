@@ -1,0 +1,582 @@
+@page "/trajetoria"
+@inject HubApiClient Api
+@inject AdminStateService AdminState
+@using Vanderluiz.Hub.Blazor.Components.Shared
+
+<PageTitle>Trajetória · Hub Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Trajetória Profissional e Acadêmica</h1>
+        <p class="texto-suave mb-0">Gerencie experiências no mercado e formação/cursos exibidos na linha do tempo.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-info" @onclick="TentarCriarFormacao">
+            <i class="bi bi-mortarboard me-1"></i> Nova Formação
+        </button>
+        <button class="btn btn-hub" @onclick="TentarCriarExperiencia">
+            <i class="bi bi-plus-lg me-1"></i> Nova Experiência
+        </button>
+    </div>
+</div>
+
+@if (!AdminState.EstaAutenticado)
+{
+    <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <i class="bi bi-info-circle me-1"></i>
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para adicionar, alterar ou excluir itens da trajetória, ative o acesso de Administrador.
+        </div>
+        <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensagemAlerta))
+{
+    <div class="alert alert-@(tipoAlerta) alert-dismissible fade show" role="alert">
+        @mensagemAlerta
+        <button type="button" class="btn-close" @onclick="() => mensagemAlerta = null"></button>
+    </div>
+}
+
+@if (carregando)
+{
+    <div class="d-flex justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando dados...</span>
+        </div>
+    </div>
+}
+else
+{
+    <!-- SEÇÃO EXPERIÊNCIAS -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                <i class="bi bi-briefcase text-info"></i> Experiências Profissionais
+            </h2>
+            <span class="badge bg-dark border border-secondary text-white-50">@experiencias.Count registro(s)</span>
+        </div>
+
+        <div class="table-responsive hub-card p-3">
+            <table class="table table-hub align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Cargo</th>
+                        <th>Empresa</th>
+                        <th>Local</th>
+                        <th>Período</th>
+                        <th>Status</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!experiencias.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-4 texto-suave">Nenhuma experiência cadastrada.</td>
+                        </tr>
+                    }
+                    @foreach (var exp in experiencias)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@exp.Cargo</td>
+                            <td>@exp.Empresa</td>
+                            <td class="texto-suave">@(exp.Local ?? "-")</td>
+                            <td>
+                                @exp.DataInicio.ToString("MM/yyyy") — @(exp.DataFim?.ToString("MM/yyyy") ?? "Atual")
+                            </td>
+                            <td>
+                                @if (exp.Atual)
+                                {
+                                    <span class="badge bg-success">Emprego Atual</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Concluído</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary me-1" title="Editar" @onclick="() => TentarEditarExperiencia(exp)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluirExperiencia(exp)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SEÇÃO FORMAÇÕES -->
+    <div>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h5 fw-bold mb-0 text-white d-flex align-items-center gap-2">
+                <i class="bi bi-mortarboard text-warning"></i> Formação Acadêmica & Cursos
+            </h2>
+            <span class="badge bg-dark border border-secondary text-white-50">@formacoes.Count registro(s)</span>
+        </div>
+
+        <div class="table-responsive hub-card p-3">
+            <table class="table table-hub align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Curso / Titulação</th>
+                        <th>Instituição</th>
+                        <th>Tipo</th>
+                        <th>Período</th>
+                        <th>Status</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!formacoes.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-4 texto-suave">Nenhuma formação cadastrada.</td>
+                        </tr>
+                    }
+                    @foreach (var f in formacoes)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@f.Curso</td>
+                            <td>@f.Instituicao</td>
+                            <td><span class="badge bg-dark border border-secondary">@f.Tipo</span></td>
+                            <td>
+                                @f.DataInicio.ToString("yyyy") — @(f.DataFim?.ToString("yyyy") ?? "Em andamento")
+                            </td>
+                            <td>
+                                @if (f.EmAndamento)
+                                {
+                                    <span class="badge bg-info text-dark">Cursando</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Concluído</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary me-1" title="Editar" @onclick="() => TentarEditarFormacao(f)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluirFormacao(f)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- MODAL EXPERIENCIA (CRIAR / EDITAR) -->
+@if (exibirModalExperiencia)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.7);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content hub-card border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">@(editandoExpId.HasValue ? "Editar Experiência" : "Nova Experiência Profissional")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => exibirModalExperiencia = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Cargo / Função *</label>
+                            <input type="text" class="form-control" @bind="inputExp.Cargo" placeholder="Ex.: Desenvolvedor .NET Pleno" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Empresa *</label>
+                            <input type="text" class="form-control" @bind="inputExp.Empresa" placeholder="Ex.: Tech Solutions" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Local / Modelo</label>
+                            <input type="text" class="form-control" @bind="inputExp.Local" placeholder="Ex.: São Paulo, SP · Remoto" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-white-50">Data de Início *</label>
+                            <input type="date" class="form-control" value="@expDataInicioStr" @onchange="(e) => expDataInicioStr = e.Value?.ToString() ?? string.Empty" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-white-50">Data de Término</label>
+                            <input type="date" class="form-control" disabled="@expAtual" value="@expDataFimStr" @onchange="(e) => expDataFimStr = e.Value?.ToString() ?? string.Empty" />
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="checkbox" id="checkExpAtual" checked="@expAtual" @onchange="(e) => expAtual = (bool)(e.Value ?? false)" />
+                                <label class="form-check-label small text-white-50" for="checkExpAtual">Trabalho atual</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-white-50">Descrição das Atividades *</label>
+                            <textarea class="form-control" rows="4" @bind="inputExp.Descricao" placeholder="Principais realizações, stack utilizada e responsabilidades..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => exibirModalExperiencia = false">Cancelar</button>
+                    <button type="button" class="btn btn-hub" disabled="@salvando" @onclick="SalvarExperiencia">
+                        @if (salvando) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @(editandoExpId.HasValue ? "Salvar Alterações" : "Cadastrar Experiência")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL FORMACAO (CRIAR / EDITAR) -->
+@if (exibirModalFormacao)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.7);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content hub-card border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold">@(editandoFormId.HasValue ? "Editar Formação" : "Nova Formação / Certificação")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => exibirModalFormacao = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Curso / Titulação *</label>
+                            <input type="text" class="form-control" @bind="inputForm.Curso" placeholder="Ex.: Análise e Desenvolvimento de Sistemas" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Instituição *</label>
+                            <input type="text" class="form-control" @bind="inputForm.Instituicao" placeholder="Ex.: FIAP / Alura / USP" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-white-50">Tipo de Formação</label>
+                            <select class="form-select" @bind="inputForm.Tipo">
+                                @foreach (var tipo in Enum.GetValues<TipoFormacao>())
+                                {
+                                    <option value="@tipo">@tipo</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-white-50">Data de Início *</label>
+                            <input type="date" class="form-control" value="@formDataInicioStr" @onchange="(e) => formDataInicioStr = e.Value?.ToString() ?? string.Empty" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-white-50">Data de Conclusão</label>
+                            <input type="date" class="form-control" disabled="@formEmAndamento" value="@formDataFimStr" @onchange="(e) => formDataFimStr = e.Value?.ToString() ?? string.Empty" />
+                            <div class="form-check mt-1">
+                                <input class="form-check-input" type="checkbox" id="checkFormAndamento" checked="@formEmAndamento" @onchange="(e) => formEmAndamento = (bool)(e.Value ?? false)" />
+                                <label class="form-check-label small text-white-50" for="checkFormAndamento">Em andamento</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small text-white-50">Detalhes / Aprendizados</label>
+                            <textarea class="form-control" rows="3" @bind="inputForm.Descricao" placeholder="Tópicos relevantes estudados, projetos ou certificação..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => exibirModalFormacao = false">Cancelar</button>
+                    <button type="button" class="btn btn-hub" disabled="@salvando" @onclick="SalvarFormacao">
+                        @if (salvando) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @(editandoFormId.HasValue ? "Salvar Alterações" : "Cadastrar Formação")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL CONFIRMAÇÃO EXCLUSÃO -->
+@if (exibirModalExclusao)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.7);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content hub-card border-danger">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => exibirModalExclusao = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza de que deseja remover <strong>@itemParaExcluirNome</strong> da trajetória?</p>
+                    <p class="small texto-suave mb-0">Esta ação não poderá ser desfeita.</p>
+                </div>
+                <div class="modal-footer border-danger">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => exibirModalExclusao = false">Cancelar</button>
+                    <button type="button" class="btn btn-danger" disabled="@salvando" @onclick="ConfirmarExclusao">
+                        @if (salvando) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Excluir Registro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<AdminLoginModal Exibir="@exibirLoginModal"
+                 AoAutenticar="AoAutenticarAdmin"
+                 AoCancelar="() => exibirLoginModal = false" />
+
+@code {
+    private bool carregando = true;
+    private bool salvando = false;
+    private string? mensagemAlerta;
+    private string tipoAlerta = "success";
+    private bool exibirLoginModal = false;
+
+    private List<ExperienciaDto> experiencias = [];
+    private List<FormacaoDto> formacoes = [];
+
+    // Estado Modal Experiência
+    private bool exibirModalExperiencia = false;
+    private int? editandoExpId;
+    private ExperienciaInputDto inputExp = new();
+    private string expDataInicioStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+    private string expDataFimStr = string.Empty;
+    private bool expAtual = true;
+
+    // Estado Modal Formação
+    private bool exibirModalFormacao = false;
+    private int? editandoFormId;
+    private FormacaoInputDto inputForm = new();
+    private string formDataInicioStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+    private string formDataFimStr = string.Empty;
+    private bool formEmAndamento = false;
+
+    // Estado Modal Exclusão
+    private bool exibirModalExclusao = false;
+    private bool excluirEhExperiencia = true;
+    private int idParaExcluir;
+    private string itemParaExcluirNome = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarDadosAsync();
+    }
+
+    private async Task CarregarDadosAsync()
+    {
+        try
+        {
+            carregando = true;
+            var tExp = Api.ListarExperienciasAsync();
+            var tForm = Api.ListarFormacoesAsync();
+            await Task.WhenAll(tExp, tForm);
+            experiencias = (await tExp).ToList();
+            formacoes = (await tForm).ToList();
+        }
+        catch (Exception ex)
+        {
+            ExibirAlerta($"Erro ao carregar trajetória: {ex.Message}", "danger");
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private void TentarCriarExperiencia()
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        editandoExpId = null;
+        inputExp = new ExperienciaInputDto();
+        expDataInicioStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        expDataFimStr = string.Empty;
+        expAtual = true;
+        exibirModalExperiencia = true;
+    }
+
+    private void TentarEditarExperiencia(ExperienciaDto exp)
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        editandoExpId = exp.Id;
+        inputExp = new ExperienciaInputDto
+        {
+            Cargo = exp.Cargo,
+            Empresa = exp.Empresa,
+            Local = exp.Local,
+            Descricao = exp.Descricao,
+            DataInicio = exp.DataInicio,
+            DataFim = exp.DataFim
+        };
+        expDataInicioStr = exp.DataInicio.ToString("yyyy-MM-dd");
+        expDataFimStr = exp.DataFim?.ToString("yyyy-MM-dd") ?? string.Empty;
+        expAtual = exp.DataFim is null;
+        exibirModalExperiencia = true;
+    }
+
+    private async Task SalvarExperiencia()
+    {
+        if (string.IsNullOrWhiteSpace(inputExp.Cargo) || string.IsNullOrWhiteSpace(inputExp.Empresa))
+        {
+            ExibirAlerta("Preencha Cargo e Empresa.", "warning");
+            return;
+        }
+
+        if (DateOnly.TryParse(expDataInicioStr, out var dInicio))
+            inputExp.DataInicio = dInicio;
+        else
+            inputExp.DataInicio = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        if (!expAtual && DateOnly.TryParse(expDataFimStr, out var dFim))
+            inputExp.DataFim = dFim;
+        else
+            inputExp.DataFim = null;
+
+        try
+        {
+            salvando = true;
+            if (editandoExpId.HasValue)
+            {
+                await Api.AtualizarExperienciaAsync(editandoExpId.Value, inputExp);
+                ExibirAlerta("Experiência atualizada com sucesso!");
+            }
+            else
+            {
+                await Api.CriarExperienciaAsync(inputExp);
+                ExibirAlerta("Experiência cadastrada com sucesso!");
+            }
+
+            exibirModalExperiencia = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            ExibirAlerta($"Falha ao salvar experiência: {ex.Message}", "danger");
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private void TentarExcluirExperiencia(ExperienciaDto exp)
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        excluirEhExperiencia = true;
+        idParaExcluir = exp.Id;
+        itemParaExcluirNome = $"{exp.Cargo} ({exp.Empresa})";
+        exibirModalExclusao = true;
+    }
+
+    private void TentarCriarFormacao()
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        editandoFormId = null;
+        inputForm = new FormacaoInputDto();
+        formDataInicioStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        formDataFimStr = string.Empty;
+        formEmAndamento = false;
+        exibirModalFormacao = true;
+    }
+
+    private void TentarEditarFormacao(FormacaoDto form)
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        editandoFormId = form.Id;
+        inputForm = new FormacaoInputDto
+        {
+            Curso = form.Curso,
+            Instituicao = form.Instituicao,
+            Tipo = form.Tipo,
+            Descricao = form.Descricao,
+            DataInicio = form.DataInicio,
+            DataFim = form.DataFim
+        };
+        formDataInicioStr = form.DataInicio.ToString("yyyy-MM-dd");
+        formDataFimStr = form.DataFim?.ToString("yyyy-MM-dd") ?? string.Empty;
+        formEmAndamento = form.DataFim is null;
+        exibirModalFormacao = true;
+    }
+
+    private async Task SalvarFormacao()
+    {
+        if (string.IsNullOrWhiteSpace(inputForm.Curso) || string.IsNullOrWhiteSpace(inputForm.Instituicao))
+        {
+            ExibirAlerta("Preencha Curso e Instituição.", "warning");
+            return;
+        }
+
+        if (DateOnly.TryParse(formDataInicioStr, out var dInicio))
+            inputForm.DataInicio = dInicio;
+        else
+            inputForm.DataInicio = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        if (!formEmAndamento && DateOnly.TryParse(formDataFimStr, out var dFim))
+            inputForm.DataFim = dFim;
+        else
+            inputForm.DataFim = null;
+
+        try
+        {
+            salvando = true;
+            if (editandoFormId.HasValue)
+            {
+                await Api.AtualizarFormacaoAsync(editandoFormId.Value, inputForm);
+                ExibirAlerta("Formação atualizada com sucesso!");
+            }
+            else
+            {
+                await Api.CriarFormacaoAsync(inputForm);
+                ExibirAlerta("Formação cadastrada com sucesso!");
+            }
+
+            exibirModalFormacao = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            ExibirAlerta($"Falha ao salvar formação: {ex.Message}", "danger");
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private void TentarExcluirFormacao(FormacaoDto form)
+    {
+        if (!AdminState.EstaAutenticado) { exibirLoginModal = true; return; }
+        excluirEhExperiencia = false;
+        idParaExcluir = form.Id;
+        itemParaExcluirNome = $"{form.Curso} ({form.Instituicao})";
+        exibirModalExclusao = true;
+    }
+
+    private async Task ConfirmarExclusao()
+    {
+        try
+        {
+            salvando = true;
+            if (excluirEhExperiencia)
+                await Api.RemoverExperienciaAsync(idParaExcluir);
+            else
+                await Api.RemoverFormacaoAsync(idParaExcluir);
+
+            ExibirAlerta("Registro removido com sucesso!");
+            exibirModalExclusao = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            ExibirAlerta($"Falha ao excluir registro: {ex.Message}", "danger");
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private void AoAutenticarAdmin()
+    {
+        exibirLoginModal = false;
+        ExibirAlerta("Acesso de Administrador confirmado com sucesso!");
+    }
+
+    private void ExibirAlerta(string mensagem, string tipo = "success")
+    {
+        mensagemAlerta = mensagem;
+        tipoAlerta = tipo;
+    }
+}
+

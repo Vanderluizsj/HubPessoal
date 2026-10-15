@@ -143,6 +143,17 @@ public class DbInitializer
             PublicadoEm = new DateTime(2026, 10, 15, 12, 0, 0, DateTimeKind.Utc)
         });
 
+        _db.Perfis.Add(new PerfilConfig
+        {
+            Nome = "Vanderluiz",
+            Titulo = "Desenvolvedor .NET",
+            Bio = "Desenvolvedor focado em ASP.NET Core, SQL Server e arquitetura de software. Construo aplicações web robustas e bem estruturadas.",
+            Localizacao = "Brasil",
+            Email = "vanderluiz@exemplo.com",
+            GitHub = "https://github.com/seu-usuario",
+            LinkedIn = "https://www.linkedin.com/in/seu-usuario"
+        });
+
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Seed concluído.");
     }

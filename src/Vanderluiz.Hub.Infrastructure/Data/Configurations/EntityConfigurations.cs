@@ -76,3 +76,20 @@ public class PostConfiguration : IEntityTypeConfiguration<Post>
     }
 }
 
+public class PerfilConfigConfiguration : IEntityTypeConfiguration<PerfilConfig>
+{
+    public void Configure(EntityTypeBuilder<PerfilConfig> b)
+    {
+        b.ToTable("Perfis");
+        b.Property(p => p.Nome).HasMaxLength(100).IsRequired();
+        b.Property(p => p.Titulo).HasMaxLength(150).IsRequired();
+        b.Property(p => p.Bio).HasMaxLength(1000).IsRequired();
+        b.Property(p => p.Localizacao).HasMaxLength(100);
+        b.Property(p => p.Email).HasMaxLength(150);
+        b.Property(p => p.GitHub).HasMaxLength(250);
+        b.Property(p => p.LinkedIn).HasMaxLength(250);
+        b.Property(p => p.FotoUrl).HasMaxLength(300);
+        b.Property(p => p.Telefone).HasMaxLength(50);
+    }
+}
+
