@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Vanderluiz.Hub.Api.Filters;
 using Vanderluiz.Hub.Application.DTOs;
 using Vanderluiz.Hub.Application.Interfaces;
 
@@ -17,7 +18,7 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Lista todos os projetos cadastrados, podendo filtrar apenas destaques.
+    /// Lista todos os projetos cadastrados, podendo filtrar apenas destaques. (Público)
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ProjetoResumoDto>), StatusCodes.Status200OK)]
@@ -28,7 +29,7 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém detalhes de um projeto a partir do seu slug (ex: gestao-de-equipamentos).
+    /// Obtém detalhes de um projeto a partir do seu slug. (Público)
     /// </summary>
     [HttpGet("{slug}")]
     [ProducesResponseType(typeof(ProjetoDetalheDto), StatusCodes.Status200OK)]
@@ -40,7 +41,7 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Obtém detalhes de um projeto a partir do seu identificador numérico.
+    /// Obtém detalhes de um projeto a partir do seu identificador numérico. (Público)
     /// </summary>
     [HttpGet("id/{id:int}")]
     [ProducesResponseType(typeof(ProjetoDetalheDto), StatusCodes.Status200OK)]
@@ -52,11 +53,13 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Cria um novo projeto.
+    /// Cria um novo projeto. (Requer Admin)
     /// </summary>
     [HttpPost]
+    [ExigirAdmin]
     [ProducesResponseType(typeof(ProjetoDetalheDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Criar([FromBody] ProjetoInputDto input, CancellationToken ct = default)
     {
         try
@@ -71,11 +74,13 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Atualiza um projeto existente.
+    /// Atualiza um projeto existente. (Requer Admin)
     /// </summary>
     [HttpPut("{id:int}")]
+    [ExigirAdmin]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Atualizar(int id, [FromBody] ProjetoInputDto input, CancellationToken ct = default)
     {
@@ -93,10 +98,12 @@ public class ProjetosController : ControllerBase
     }
 
     /// <summary>
-    /// Remove um projeto pelo identificador.
+    /// Remove um projeto pelo identificador. (Requer Admin)
     /// </summary>
     [HttpDelete("{id:int}")]
+    [ExigirAdmin]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Remover(int id, CancellationToken ct = default)
     {
@@ -106,4 +113,3 @@ public class ProjetosController : ControllerBase
         return NoContent();
     }
 }
-

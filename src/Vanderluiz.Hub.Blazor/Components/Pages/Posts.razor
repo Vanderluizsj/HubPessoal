@@ -1,14 +1,38 @@
 @page "/posts"
 @inject HubApiClient Api
+@inject AdminStateService AdminState
+@using Vanderluiz.Hub.Blazor.Components.Shared
 
 <PageTitle>Posts & Artigos · Hub Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h3 fw-bold mb-1">Posts & Artigos do Blog</h1>
-        <p class="texto-suave mb-0">Publicações e notas técnicas cadastradas no Hub.</p>
+        <p class="texto-suave mb-0">Crie, edite e gerencie as publicações exibidas no portal.</p>
     </div>
+    <button class="btn btn-hub" @onclick="TentarCriar">
+        <i class="bi bi-plus-lg me-1"></i> Novo Post
+    </button>
 </div>
+
+@if (!AdminState.EstaAutenticado)
+{
+    <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <i class="bi bi-info-circle me-1"></i>
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para criar novos artigos ou editar posts, ative o acesso de Administrador.
+        </div>
+        <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensagemAlerta))
+{
+    <div class="alert alert-@(tipoAlerta) alert-dismissible fade show" role="alert">
+        @mensagemAlerta
+        <button type="button" class="btn-close" @onclick="() => mensagemAlerta = null"></button>
+    </div>
+}
 
 @if (carregando)
 {
@@ -36,6 +60,7 @@ else
                         <th>Slug</th>
                         <th>Resumo</th>
                         <th>Publicado Em</th>
+                        <th class="text-end">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -44,8 +69,16 @@ else
                         <tr>
                             <td class="fw-semibold">@p.Titulo</td>
                             <td><code>@p.Slug</code></td>
-                            <td class="texto-suave">@p.Resumo</td>
-                            <td>@(p.PublicadoEm.HasValue ? p.PublicadoEm.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-")</td>
+                            <td class="texto-suave" style="max-width: 320px;">@p.Resumo</td>
+                            <td>@(p.PublicadoEm.HasValue ? p.PublicadoEm.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "Rascunho")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-info me-1" title="Editar" @onclick="() => TentarEditar(p.Id)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluir(p)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -54,20 +87,234 @@ else
     </div>
 }
 
+<!-- MODAL DE CADASTRO / EDIÇÃO -->
+@if (exibirModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">@(edicaoId.HasValue ? "Editar Post" : "Novo Post")</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="inputModel" OnValidSubmit="SalvarPostAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Título do Post *</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Titulo" placeholder="Ex: Boas práticas com ASP.NET Core" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Slug (opcional)</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Slug" placeholder="auto-gerado" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Resumo *</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Resumo" placeholder="Uma breve sinopse do artigo" required />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Conteúdo do Post *</label>
+                                <InputTextArea class="form-control" rows="8" @bind-Value="inputModel.Conteudo" placeholder="Escreva o texto completo do post aqui..." required />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch mt-2">
+                                    <InputCheckbox class="form-check-input" id="checkPublicado" @bind-Value="inputModel.Publicado" />
+                                    <label class="form-check-label fw-semibold" for="checkPublicado">Publicar no portal imediatamente</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer px-0 pb-0 mt-4">
+                            <button type="button" class="btn btn-hub-outline" @onclick="FecharModal">Cancelar</button>
+                            <button type="submit" class="btn btn-hub" disabled="@salvando">
+                                @if (salvando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                Salvar Post
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL DE EXCLUSÃO -->
+@if (postParaExcluir is not null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Excluir Post</h5>
+                    <button type="button" class="btn-close" @onclick="() => postParaExcluir = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza de que deseja excluir o post <strong>@postParaExcluir.Titulo</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-hub-outline" @onclick="() => postParaExcluir = null">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarExclusaoFinalAsync">Confirmar Exclusão</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<AdminLoginModal @bind-Exibir="exibirLoginModal" />
+
 @code {
     private bool carregando = true;
+    private bool salvando = false;
+    private bool exibirModal = false;
+    private bool exibirLoginModal = false;
+
+    private string? mensagemAlerta;
+    private string tipoAlerta = "success";
+
     private IReadOnlyList<PostResumoDto> posts = [];
+    private int? edicaoId;
+    private PostInputDto inputModel = new();
+    private PostResumoDto? postParaExcluir;
 
     protected override async Task OnInitializedAsync()
     {
+        await CarregarDadosAsync();
+    }
+
+    private async Task CarregarDadosAsync()
+    {
         try
         {
-            posts = await Api.ListarPostsAsync();
+            carregando = true;
+            posts = await Api.ListarPostsAsync(todos: true);
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao carregar posts: {ex.Message}";
+            tipoAlerta = "danger";
         }
         finally
         {
             carregando = false;
         }
     }
-}
 
+    private void TentarCriar()
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        edicaoId = null;
+        inputModel = new PostInputDto
+        {
+            Publicado = true
+        };
+        exibirModal = true;
+    }
+
+    private async Task TentarEditar(int id)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        try
+        {
+            var detalhe = await Api.ObterPostPorIdAsync(id);
+            if (detalhe is null) return;
+
+            edicaoId = id;
+            inputModel = new PostInputDto
+            {
+                Titulo = detalhe.Titulo,
+                Slug = detalhe.Slug,
+                Resumo = detalhe.Resumo,
+                Conteudo = detalhe.Conteudo,
+                Publicado = detalhe.PublicadoEm.HasValue
+            };
+            exibirModal = true;
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao carregar post: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private void TentarExcluir(PostResumoDto p)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        postParaExcluir = p;
+    }
+
+    private async Task SalvarPostAsync()
+    {
+        try
+        {
+            salvando = true;
+            if (edicaoId.HasValue)
+            {
+                await Api.AtualizarPostAsync(edicaoId.Value, inputModel);
+                mensagemAlerta = "Post atualizado com sucesso!";
+            }
+            else
+            {
+                await Api.CriarPostAsync(inputModel);
+                mensagemAlerta = "Post cadastrado com sucesso!";
+            }
+
+            tipoAlerta = "success";
+            exibirModal = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Falha ao salvar post: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private async Task ConfirmarExclusaoFinalAsync()
+    {
+        if (postParaExcluir is null) return;
+
+        try
+        {
+            await Api.RemoverPostAsync(postParaExcluir.Id);
+            mensagemAlerta = $"Post '{postParaExcluir.Titulo}' excluído com sucesso!";
+            tipoAlerta = "success";
+            postParaExcluir = null;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao excluir: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private void FecharModal() => exibirModal = false;
+}

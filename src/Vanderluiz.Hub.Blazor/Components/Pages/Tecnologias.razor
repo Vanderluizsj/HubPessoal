@@ -1,14 +1,38 @@
 @page "/tecnologias"
 @inject HubApiClient Api
+@inject AdminStateService AdminState
+@using Vanderluiz.Hub.Blazor.Components.Shared
 
 <PageTitle>Tecnologias · Hub Admin</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h3 fw-bold mb-1">Tecnologias e Ferramentas</h1>
-        <p class="texto-suave mb-0">Tecnologias cadastradas na base e associadas aos projetos.</p>
+        <p class="texto-suave mb-0">Gerencie a stack de tecnologias exibidas no portfólio.</p>
     </div>
+    <button class="btn btn-hub" @onclick="TentarCriar">
+        <i class="bi bi-plus-lg me-1"></i> Nova Tecnologia
+    </button>
 </div>
+
+@if (!AdminState.EstaAutenticado)
+{
+    <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <i class="bi bi-info-circle me-1"></i>
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para adicionar, alterar ou excluir tecnologias, ative o acesso de Administrador.
+        </div>
+        <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensagemAlerta))
+{
+    <div class="alert alert-@(tipoAlerta) alert-dismissible fade show" role="alert">
+        @mensagemAlerta
+        <button type="button" class="btn-close" @onclick="() => mensagemAlerta = null"></button>
+    </div>
+}
 
 @if (carregando)
 {
@@ -30,12 +54,22 @@ else
             @foreach (var tec in grupo)
             {
                 <div class="col-sm-6 col-lg-4 col-xl-3">
-                    <div class="hub-card p-3 d-flex align-items-center gap-3">
-                        <i class="@(tec.IconeClasse ?? "bi bi-code-slash") fs-2 text-white-50" style="width: 36px; text-align: center;"></i>
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="fw-bold text-truncate">@tec.Nome</div>
-                            <small class="texto-suave d-block">Nível: @tec.Nivel</small>
-                            <small class="text-info">@tec.QuantidadeProjetos projeto(s)</small>
+                    <div class="hub-card p-3 d-flex flex-column justify-content-between h-100">
+                        <div class="d-flex align-items-center gap-3 mb-2">
+                            <i class="@(tec.IconeClasse ?? "bi bi-code-slash") fs-2 text-white-50" style="width: 36px; text-align: center;"></i>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-bold text-truncate">@tec.Nome</div>
+                                <small class="texto-suave d-block">Nível: @tec.Nivel</small>
+                                <small class="text-info">@tec.QuantidadeProjetos projeto(s)</small>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end gap-1 pt-2 border-top border-dark-subtle">
+                            <button class="btn btn-sm btn-outline-info" title="Editar" @onclick="() => TentarEditar(tec)">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluir(tec)">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -44,20 +78,229 @@ else
     }
 }
 
+<!-- MODAL DE CADASTRO / EDIÇÃO -->
+@if (exibirModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">@(edicaoId.HasValue ? "Editar Tecnologia" : "Nova Tecnologia")</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="inputModel" OnValidSubmit="SalvarTecnologiaAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Nome da Tecnologia *</label>
+                            <InputText class="form-control" @bind-Value="inputModel.Nome" placeholder="Ex: C#, Docker, PostgreSQL" required />
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">Categoria</label>
+                                <InputSelect class="form-select" @bind-Value="inputModel.Categoria">
+                                    <option value="@CategoriaTecnologia.Linguagem">Linguagem</option>
+                                    <option value="@CategoriaTecnologia.Backend">Backend</option>
+                                    <option value="@CategoriaTecnologia.Frontend">Frontend</option>
+                                    <option value="@CategoriaTecnologia.BancoDeDados">Banco de Dados</option>
+                                    <option value="@CategoriaTecnologia.DevOps">DevOps</option>
+                                    <option value="@CategoriaTecnologia.Ferramenta">Ferramenta</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Nível de Domínio</label>
+                                <InputSelect class="form-select" @bind-Value="inputModel.Nivel">
+                                    <option value="@NivelTecnologia.Basico">Básico</option>
+                                    <option value="@NivelTecnologia.Intermediario">Intermediário</option>
+                                    <option value="@NivelTecnologia.Avancado">Avançado</option>
+                                    <option value="@NivelTecnologia.Especialista">Especialista</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Classe do Ícone (Devicon)</label>
+                            <InputText class="form-control" @bind-Value="inputModel.IconeClasse" placeholder="Ex: devicon-csharp-plain" />
+                            <small class="texto-suave">Classes do catálogo Devicon (ex: <code>devicon-docker-plain</code>).</small>
+                        </div>
+
+                        <div class="modal-footer px-0 pb-0 mt-4">
+                            <button type="button" class="btn btn-hub-outline" @onclick="FecharModal">Cancelar</button>
+                            <button type="submit" class="btn btn-hub" disabled="@salvando">
+                                @if (salvando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                Salvar Tecnologia
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL DE EXCLUSÃO -->
+@if (tecParaExcluir is not null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Excluir Tecnologia</h5>
+                    <button type="button" class="btn-close" @onclick="() => tecParaExcluir = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza de que deseja excluir a tecnologia <strong>@tecParaExcluir.Nome</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-hub-outline" @onclick="() => tecParaExcluir = null">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarExclusaoFinalAsync">Confirmar Exclusão</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<AdminLoginModal @bind-Exibir="exibirLoginModal" />
+
 @code {
     private bool carregando = true;
+    private bool salvando = false;
+    private bool exibirModal = false;
+    private bool exibirLoginModal = false;
+
+    private string? mensagemAlerta;
+    private string tipoAlerta = "success";
+
     private IReadOnlyList<TecnologiaDto> tecnologias = [];
+    private int? edicaoId;
+    private TecnologiaInputDto inputModel = new();
+    private TecnologiaDto? tecParaExcluir;
 
     protected override async Task OnInitializedAsync()
     {
+        await CarregarDadosAsync();
+    }
+
+    private async Task CarregarDadosAsync()
+    {
         try
         {
+            carregando = true;
             tecnologias = await Api.ListarTecnologiasAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao carregar tecnologias: {ex.Message}";
+            tipoAlerta = "danger";
         }
         finally
         {
             carregando = false;
         }
     }
-}
 
+    private void TentarCriar()
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        edicaoId = null;
+        inputModel = new TecnologiaInputDto
+        {
+            Categoria = CategoriaTecnologia.Linguagem,
+            Nivel = NivelTecnologia.Intermediario
+        };
+        exibirModal = true;
+    }
+
+    private void TentarEditar(TecnologiaDto tec)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        edicaoId = tec.Id;
+        inputModel = new TecnologiaInputDto
+        {
+            Nome = tec.Nome,
+            Categoria = tec.Categoria,
+            Nivel = tec.Nivel,
+            IconeClasse = tec.IconeClasse
+        };
+        exibirModal = true;
+    }
+
+    private void TentarExcluir(TecnologiaDto tec)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        tecParaExcluir = tec;
+    }
+
+    private async Task SalvarTecnologiaAsync()
+    {
+        try
+        {
+            salvando = true;
+            if (edicaoId.HasValue)
+            {
+                await Api.AtualizarTecnologiaAsync(edicaoId.Value, inputModel);
+                mensagemAlerta = "Tecnologia atualizada com sucesso!";
+            }
+            else
+            {
+                await Api.CriarTecnologiaAsync(inputModel);
+                mensagemAlerta = "Tecnologia cadastrada com sucesso!";
+            }
+
+            tipoAlerta = "success";
+            exibirModal = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Falha ao salvar tecnologia: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private async Task ConfirmarExclusaoFinalAsync()
+    {
+        if (tecParaExcluir is null) return;
+
+        try
+        {
+            await Api.RemoverTecnologiaAsync(tecParaExcluir.Id);
+            mensagemAlerta = $"Tecnologia '{tecParaExcluir.Nome}' excluída com sucesso!";
+            tipoAlerta = "success";
+            tecParaExcluir = null;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao excluir: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private void FecharModal() => exibirModal = false;
+}

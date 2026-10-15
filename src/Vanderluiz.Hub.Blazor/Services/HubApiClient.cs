@@ -5,14 +5,33 @@ namespace Vanderluiz.Hub.Blazor.Services;
 
 /// <summary>
 /// Cliente centralizado para consumo da Vanderluiz.Hub.Api pelo painel Blazor.
+/// Envia o header X-Admin-Key automaticamente quando o usuário está autenticado como administrador.
 /// </summary>
 public class HubApiClient
 {
     private readonly HttpClient _http;
+    private readonly AdminStateService _adminState;
 
-    public HubApiClient(HttpClient http)
+    public HubApiClient(HttpClient http, AdminStateService adminState)
     {
         _http = http;
+        _adminState = adminState;
+    }
+
+    private HttpRequestMessage CriarRequisicao(HttpMethod metodo, string url, object? corpo = null)
+    {
+        var req = new HttpRequestMessage(metodo, url);
+        if (_adminState.EstaAutenticado && !string.IsNullOrEmpty(_adminState.ChaveAdmin))
+        {
+            req.Headers.Add("X-Admin-Key", _adminState.ChaveAdmin);
+        }
+
+        if (corpo is not null)
+        {
+            req.Content = JsonContent.Create(corpo);
+        }
+
+        return req;
     }
 
     // ==========================================
@@ -33,18 +52,10 @@ public class HubApiClient
         return await resposta.Content.ReadFromJsonAsync<ProjetoDetalheDto>(cancellationToken: ct);
     }
 
-    public async Task<ProjetoDetalheDto?> ObterProjetoPorSlugAsync(string slug, CancellationToken ct = default)
-    {
-        var resposta = await _http.GetAsync($"/api/projetos/{slug}", ct);
-        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-
-        resposta.EnsureSuccessStatusCode();
-        return await resposta.Content.ReadFromJsonAsync<ProjetoDetalheDto>(cancellationToken: ct);
-    }
-
     public async Task<ProjetoDetalheDto> CriarProjetoAsync(ProjetoInputDto input, CancellationToken ct = default)
     {
-        var resposta = await _http.PostAsJsonAsync("/api/projetos", input, ct);
+        using var req = CriarRequisicao(HttpMethod.Post, "/api/projetos", input);
+        using var resposta = await _http.SendAsync(req, ct);
         resposta.EnsureSuccessStatusCode();
         return await resposta.Content.ReadFromJsonAsync<ProjetoDetalheDto>(cancellationToken: ct)
             ?? throw new InvalidOperationException("Falha ao criar projeto na API.");
@@ -52,7 +63,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarProjetoAsync(int id, ProjetoInputDto input, CancellationToken ct = default)
     {
-        var resposta = await _http.PutAsJsonAsync($"/api/projetos/{id}", input, ct);
+        using var req = CriarRequisicao(HttpMethod.Put, $"/api/projetos/{id}", input);
+        using var resposta = await _http.SendAsync(req, ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
 
         resposta.EnsureSuccessStatusCode();
@@ -61,7 +73,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverProjetoAsync(int id, CancellationToken ct = default)
     {
-        var resposta = await _http.DeleteAsync($"/api/projetos/{id}", ct);
+        using var req = CriarRequisicao(HttpMethod.Delete, $"/api/projetos/{id}");
+        using var resposta = await _http.SendAsync(req, ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
 
         resposta.EnsureSuccessStatusCode();
@@ -69,20 +82,96 @@ public class HubApiClient
     }
 
     // ==========================================
-    // TECNOLOGIAS
+    // TECNOLOGIAS (CRUD COMPLETO)
     // ==========================================
     public async Task<IReadOnlyList<TecnologiaDto>> ListarTecnologiasAsync(CancellationToken ct = default)
     {
         return await _http.GetFromJsonAsync<IReadOnlyList<TecnologiaDto>>("/api/tecnologias", ct) ?? [];
     }
 
-    // ==========================================
-    // POSTS
-    // ==========================================
-    public async Task<IReadOnlyList<PostResumoDto>> ListarPostsAsync(int? quantidade = null, CancellationToken ct = default)
+    public async Task<TecnologiaDto?> ObterTecnologiaPorIdAsync(int id, CancellationToken ct = default)
     {
-        var url = $"/api/posts{(quantidade.HasValue ? $"?quantidade={quantidade.Value}" : "")}";
+        var resposta = await _http.GetAsync($"/api/tecnologias/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<TecnologiaDto>(cancellationToken: ct);
+    }
+
+    public async Task<TecnologiaDto> CriarTecnologiaAsync(TecnologiaInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Post, "/api/tecnologias", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<TecnologiaDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao criar tecnologia na API.");
+    }
+
+    public async Task<bool> AtualizarTecnologiaAsync(int id, TecnologiaInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Put, $"/api/tecnologias/{id}", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    public async Task<bool> RemoverTecnologiaAsync(int id, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Delete, $"/api/tecnologias/{id}");
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    // ==========================================
+    // POSTS & BLOG (CRUD COMPLETO)
+    // ==========================================
+    public async Task<IReadOnlyList<PostResumoDto>> ListarPostsAsync(int? quantidade = null, bool todos = true, CancellationToken ct = default)
+    {
+        var url = $"/api/posts?todos={todos}{(quantidade.HasValue ? $"&quantidade={quantidade.Value}" : "")}";
         return await _http.GetFromJsonAsync<IReadOnlyList<PostResumoDto>>(url, ct) ?? [];
+    }
+
+    public async Task<PostDto?> ObterPostPorIdAsync(int id, CancellationToken ct = default)
+    {
+        var resposta = await _http.GetAsync($"/api/posts/id/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<PostDto>(cancellationToken: ct);
+    }
+
+    public async Task<PostDto> CriarPostAsync(PostInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Post, "/api/posts", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<PostDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao criar post na API.");
+    }
+
+    public async Task<bool> AtualizarPostAsync(int id, PostInputDto input, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Put, $"/api/posts/{id}", input);
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    public async Task<bool> RemoverPostAsync(int id, CancellationToken ct = default)
+    {
+        using var req = CriarRequisicao(HttpMethod.Delete, $"/api/posts/{id}");
+        using var resposta = await _http.SendAsync(req, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
     }
 
     // ==========================================
@@ -98,4 +187,3 @@ public class HubApiClient
         return await _http.GetFromJsonAsync<IReadOnlyList<FormacaoDto>>("/api/trajetoria/formacoes", ct) ?? [];
     }
 }
-

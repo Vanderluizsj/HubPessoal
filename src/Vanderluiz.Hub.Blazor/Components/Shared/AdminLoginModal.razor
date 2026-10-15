@@ -1,0 +1,74 @@
+@inject AdminStateService AdminState
+
+@if (Exibir)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.75); z-index: 1055;" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-bottom border-dark-subtle">
+                    <h5 class="modal-title fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-shield-lock text-info"></i> Acesso Administrativo
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="FecharAsync"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="texto-suave small">
+                        Como este projeto é um portfólio público, qualquer visitante pode navegar e visualizar os dados.
+                        Para realizar inclusões, alterações ou exclusões, autentique-se como administrador.
+                    </p>
+
+                    @if (!string.IsNullOrEmpty(mensagemErro))
+                    {
+                        <div class="alert alert-danger py-2 small mb-3">@mensagemErro</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Senha / Chave de Acesso</label>
+                        <input type="password" class="form-control" placeholder="Digite a chave de admin..."
+                               @bind="chaveDigitada" @onkeydown="HandleKeyDownAsync" />
+                        <small class="texto-suave mt-1 d-block">
+                            Chave padrão de demonstração: <code>hub-admin-2026</code>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-dark-subtle">
+                    <button type="button" class="btn btn-hub-outline btn-sm" @onclick="FecharAsync">Cancelar</button>
+                    <button type="button" class="btn btn-hub btn-sm" @onclick="TentarAutenticarAsync">Entrar como Admin</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Exibir { get; set; }
+    [Parameter] public EventCallback<bool> ExibirChanged { get; set; }
+
+    private string chaveDigitada = "hub-admin-2026";
+    private string? mensagemErro;
+
+    private async Task TentarAutenticarAsync()
+    {
+        if (AdminState.Autenticar(chaveDigitada))
+        {
+            mensagemErro = null;
+            await FecharAsync();
+        }
+        else
+        {
+            mensagemErro = "Chave de acesso incorreta. Tente novamente.";
+        }
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await TentarAutenticarAsync();
+    }
+
+    private async Task FecharAsync()
+    {
+        Exibir = false;
+        await ExibirChanged.InvokeAsync(false);
+    }
+}
+

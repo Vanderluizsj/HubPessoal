@@ -12,6 +12,15 @@ public record TecnologiaDto(
     string? IconeClasse,
     int QuantidadeProjetos);
 
+public class TecnologiaInputDto
+{
+    public string Nome { get; set; } = string.Empty;
+    public CategoriaTecnologia Categoria { get; set; } = CategoriaTecnologia.Linguagem;
+    public NivelTecnologia Nivel { get; set; } = NivelTecnologia.Intermediario;
+    public string? IconeClasse { get; set; }
+    public int Ordem { get; set; }
+}
+
 public record ProjetoResumoDto(
     int Id,
     string Titulo,
@@ -37,7 +46,7 @@ public record ProjetoDetalheDto(
     DateOnly? DataFim,
     IReadOnlyList<TecnologiaTagDto> Tecnologias);
 
-/// <summary>Dados de entrada para criar/atualizar um projeto (usado pelo futuro admin/API).</summary>
+/// <summary>Dados de entrada para criar/atualizar um projeto.</summary>
 public class ProjetoInputDto
 {
     public string Titulo { get; set; } = string.Empty;
@@ -79,3 +88,11 @@ public record PostResumoDto(int Id, string Titulo, string Slug, string Resumo, D
 
 public record PostDto(int Id, string Titulo, string Slug, string Resumo, string Conteudo, DateTime? PublicadoEm);
 
+public class PostInputDto
+{
+    public string Titulo { get; set; } = string.Empty;
+    public string? Slug { get; set; }
+    public string Resumo { get; set; } = string.Empty;
+    public string Conteudo { get; set; } = string.Empty;
+    public bool Publicado { get; set; } = true;
+}

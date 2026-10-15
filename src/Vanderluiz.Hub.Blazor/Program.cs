@@ -7,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Estado de autenticação do Admin (Modo Leitura vs Modo Admin)
+builder.Services.AddScoped<AdminStateService>();
+
 // Registra o cliente HTTP para consumo da Web API
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "https://localhost:7066";
 builder.Services.AddHttpClient<HubApiClient>(client =>

@@ -1,5 +1,7 @@
 @page "/projetos"
 @inject HubApiClient Api
+@inject AdminStateService AdminState
+@using Vanderluiz.Hub.Blazor.Components.Shared
 
 <PageTitle>Gerenciar Projetos · Hub Admin</PageTitle>
 
@@ -8,10 +10,21 @@
         <h1 class="h3 fw-bold mb-1">Gerenciador de Projetos</h1>
         <p class="texto-suave mb-0">Cadastre, edite ou remova projetos exibidos no portfólio.</p>
     </div>
-    <button class="btn btn-hub" @onclick="AbrirModalCriacao">
+    <button class="btn btn-hub" @onclick="TentarCriarProjeto">
         <i class="bi bi-plus-lg me-1"></i> Novo Projeto
     </button>
 </div>
+
+@if (!AdminState.EstaAutenticado)
+{
+    <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div>
+            <i class="bi bi-info-circle me-1"></i>
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para testar a inclusão, alteração ou exclusão de dados, ative o acesso de Administrador.
+        </div>
+        <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
+    </div>
+}
 
 @if (!string.IsNullOrEmpty(mensagemAlerta))
 {
@@ -97,10 +110,10 @@ else
                                     </div>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-info me-1" title="Editar" @onclick="() => AbrirModalEdicao(p.Id)">
+                                    <button class="btn btn-sm btn-outline-info me-1" title="Editar" @onclick="() => TentarEditar(p.Id)">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => ConfirmarExclusao(p)">
+                                    <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluir(p)">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </td>
@@ -236,10 +249,13 @@ else
     </div>
 }
 
+<AdminLoginModal @bind-Exibir="exibirLoginModal" />
+
 @code {
     private bool carregando = true;
     private bool salvando = false;
     private bool exibirModal = false;
+    private bool exibirLoginModal = false;
     private string termoBusca = string.Empty;
 
     private string? mensagemAlerta;
@@ -281,8 +297,14 @@ else
         }
     }
 
-    private void AbrirModalCriacao()
+    private void TentarCriarProjeto()
     {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
         projetoEdicaoId = null;
         inputModel = new ProjetoInputDto
         {
@@ -294,8 +316,14 @@ else
         exibirModal = true;
     }
 
-    private async Task AbrirModalEdicao(int id)
+    private async Task TentarEditar(int id)
     {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
         try
         {
             var detalhe = await Api.ObterProjetoPorIdAsync(id);
@@ -324,6 +352,17 @@ else
             mensagemAlerta = $"Erro ao carregar detalhes: {ex.Message}";
             tipoAlerta = "danger";
         }
+    }
+
+    private void TentarExcluir(ProjetoResumoDto p)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        projetoParaExcluir = p;
     }
 
     private void AlternarTecnologia(int id)
@@ -365,11 +404,6 @@ else
         }
     }
 
-    private void ConfirmarExclusao(ProjetoResumoDto p)
-    {
-        projetoParaExcluir = p;
-    }
-
     private async Task ConfirmarExclusaoFinalAsync()
     {
         if (projetoParaExcluir is null) return;
@@ -399,4 +433,3 @@ else
         _ => "status-planejado"
     };
 }
-

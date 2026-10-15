@@ -33,14 +33,27 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="hubNav">
-                    <ul class="navbar-nav ms-auto">
+                    <ul class="navbar-nav ms-auto align-items-lg-center">
                         <li class="nav-item"><a class="nav-link @Ativo("/")" href="/">Início</a></li>
                         <li class="nav-item"><a class="nav-link @Ativo("/sobre")" href="/sobre">Sobre</a></li>
                         <li class="nav-item"><a class="nav-link @Ativo("/trajetoria")" href="/trajetoria">Trajetória</a></li>
                         <li class="nav-item"><a class="nav-link @Ativo("/projetos")" href="/projetos">Projetos</a></li>
                         <li class="nav-item"><a class="nav-link @Ativo("/tecnologias")" href="/tecnologias">Tecnologias</a></li>
                         <li class="nav-item"><a class="nav-link @Ativo("/blog")" href="/blog">Blog</a></li>
-                        <li class="nav-item ms-lg-2"><a class="btn btn-hub btn-sm mt-2 mt-lg-0" href="/contato">Contato</a></li>
+                        <li class="nav-item"><a class="nav-link @Ativo("/contato")" href="/contato">Contato</a></li>
+
+                        <li class="nav-item ms-lg-3 my-2 my-lg-0 border-start border-secondary ps-lg-3 d-flex gap-2">
+                            <a class="btn btn-outline-info btn-sm d-flex align-items-center gap-1"
+                               href="https://localhost:7011" target="_blank" rel="noopener" title="Abrir Painel Administrativo em Blazor">
+                                <i class="bi bi-shield-lock"></i>
+                                <span>Admin (Blazor)</span>
+                            </a>
+                            <a class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
+                               href="https://localhost:7066/scalar/v1" target="_blank" rel="noopener" title="Documentação Interativa da API (Scalar)">
+                                <i class="bi bi-file-earmark-code"></i>
+                                <span>API</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -53,7 +66,13 @@
 
     <footer class="hub-footer">
         <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <span>&copy; @DateTime.Now.Year @perfil.Nome · Feito com ASP.NET Core</span>
+            <div class="d-flex align-items-center gap-2">
+                <span>&copy; @DateTime.Now.Year @perfil.Nome · Feito com ASP.NET Core</span>
+                <span class="text-white-50">·</span>
+                <a href="https://localhost:7011" target="_blank" class="small text-decoration-none texto-destaque">Gestão (Blazor)</a>
+                <span class="text-white-50">·</span>
+                <a href="https://localhost:7066/scalar/v1" target="_blank" class="small text-decoration-none texto-destaque">API Docs</a>
+            </div>
             <partial name="_RedesSociais" />
         </div>
     </footer>

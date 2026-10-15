@@ -23,6 +23,12 @@ public class PostHttpService : IPostService
         return resposta ?? [];
     }
 
+    public async Task<IReadOnlyList<PostResumoDto>> ListarTodosAsync(CancellationToken ct = default)
+    {
+        var resposta = await _http.GetFromJsonAsync<IReadOnlyList<PostResumoDto>>("/api/posts?todos=true", ct);
+        return resposta ?? [];
+    }
+
     public async Task<PostDto?> ObterPublicadoPorSlugAsync(string slug, CancellationToken ct = default)
     {
         var resposta = await _http.GetAsync($"/api/posts/{slug}", ct);
@@ -31,5 +37,39 @@ public class PostHttpService : IPostService
         resposta.EnsureSuccessStatusCode();
         return await resposta.Content.ReadFromJsonAsync<PostDto>(cancellationToken: ct);
     }
-}
 
+    public async Task<PostDto?> ObterPorIdAsync(int id, CancellationToken ct = default)
+    {
+        var resposta = await _http.GetAsync($"/api/posts/id/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<PostDto>(cancellationToken: ct);
+    }
+
+    public async Task<PostDto> CriarAsync(PostInputDto input, CancellationToken ct = default)
+    {
+        var resposta = await _http.PostAsJsonAsync("/api/posts", input, ct);
+        resposta.EnsureSuccessStatusCode();
+        return await resposta.Content.ReadFromJsonAsync<PostDto>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Falha ao criar post na API.");
+    }
+
+    public async Task<bool> AtualizarAsync(int id, PostInputDto input, CancellationToken ct = default)
+    {
+        var resposta = await _http.PutAsJsonAsync($"/api/posts/{id}", input, ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+
+    public async Task<bool> RemoverAsync(int id, CancellationToken ct = default)
+    {
+        var resposta = await _http.DeleteAsync($"/api/posts/{id}", ct);
+        if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return false;
+
+        resposta.EnsureSuccessStatusCode();
+        return true;
+    }
+}
