@@ -1,0 +1,192 @@
+@page "/"
+@page "/admin"
+@inject HubApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard · Hub Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Painel Administrativo</h1>
+        <p class="texto-suave mb-0">Visão geral do Hub Pessoal e status das entidades cadastradas.</p>
+    </div>
+    <a href="projetos" class="btn btn-hub"><i class="bi bi-plus-lg me-1"></i> Gerenciar Projetos</a>
+</div>
+
+@if (carregando)
+{
+    <div class="d-flex justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando dados da API...</span>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(mensagemErro))
+{
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>
+            <strong>Erro ao comunicar com a Web API:</strong> @mensagemErro
+            <br /><small>Certifique-se de que a API (https://localhost:7066) está rodando.</small>
+        </div>
+    </div>
+}
+else
+{
+    <!-- CARDS DE ESTATÍSTICAS -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="hub-card stat-card">
+                <div class="stat-icon" style="background: rgba(124, 92, 255, 0.15); color: #c4b5fd;">
+                    <i class="bi bi-kanban"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@projetos.Count</div>
+                    <div class="stat-label">Projetos</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="hub-card stat-card">
+                <div class="stat-icon" style="background: rgba(34, 211, 238, 0.15); color: #22d3ee;">
+                    <i class="bi bi-cpu"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@tecnologias.Count</div>
+                    <div class="stat-label">Tecnologias</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="hub-card stat-card">
+                <div class="stat-icon" style="background: rgba(34, 197, 94, 0.15); color: #4ade80;">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@posts.Count</div>
+                    <div class="stat-label">Posts & Artigos</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-sm-6 col-xl-3">
+            <div class="hub-card stat-card">
+                <div class="stat-icon" style="background: rgba(250, 204, 21, 0.15); color: #facc15;">
+                    <i class="bi bi-briefcase"></i>
+                </div>
+                <div>
+                    <div class="stat-number">@(experiencias.Count + formacoes.Count)</div>
+                    <div class="stat-label">Trajetória</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABELA DOS ÚLTIMOS PROJETOS -->
+    <div class="hub-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold mb-0">Projetos Recentes</h2>
+            <a href="projetos" class="small text-decoration-none">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hub">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Slug</th>
+                        <th>Status</th>
+                        <th>Destaque</th>
+                        <th>Tecnologias</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in projetos.Take(5))
+                    {
+                        <tr>
+                            <td class="fw-semibold">@p.Titulo</td>
+                            <td><code>@p.Slug</code></td>
+                            <td>
+                                <span class="status-badge @ObterCssStatus(p.Status)">@p.Status</span>
+                            </td>
+                            <td>
+                                @if (p.Destaque)
+                                {
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Sim</span>
+                                }
+                                else
+                                {
+                                    <span class="texto-suave">Não</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var t in p.Tecnologias.Take(3))
+                                    {
+                                        <span class="tag">@t.Nome</span>
+                                    }
+                                    @if (p.Tecnologias.Count > 3)
+                                    {
+                                        <span class="tag">+@(p.Tecnologias.Count - 3)</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private bool carregando = true;
+    private string? mensagemErro;
+
+    private IReadOnlyList<ProjetoResumoDto> projetos = [];
+    private IReadOnlyList<TecnologiaDto> tecnologias = [];
+    private IReadOnlyList<PostResumoDto> posts = [];
+    private IReadOnlyList<ExperienciaDto> experiencias = [];
+    private IReadOnlyList<FormacaoDto> formacoes = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            carregando = true;
+            mensagemErro = null;
+
+            var tProjetos = Api.ListarProjetosAsync();
+            var tTecnologias = Api.ListarTecnologiasAsync();
+            var tPosts = Api.ListarPostsAsync();
+            var tExperiencias = Api.ListarExperienciasAsync();
+            var tFormacoes = Api.ListarFormacoesAsync();
+
+            await Task.WhenAll(tProjetos, tTecnologias, tPosts, tExperiencias, tFormacoes);
+
+            projetos = await tProjetos;
+            tecnologias = await tTecnologias;
+            posts = await tPosts;
+            experiencias = await tExperiencias;
+            formacoes = await tFormacoes;
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = ex.Message;
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private string ObterCssStatus(StatusProjeto status) => status switch
+    {
+        StatusProjeto.Concluido => "status-concluido",
+        StatusProjeto.EmAndamento => "status-andamento",
+        StatusProjeto.Pausado => "status-pausado",
+        _ => "status-planejado"
+    };
+}

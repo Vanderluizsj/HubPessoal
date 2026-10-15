@@ -1,0 +1,73 @@
+@page "/posts"
+@inject HubApiClient Api
+
+<PageTitle>Posts & Artigos · Hub Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Posts & Artigos do Blog</h1>
+        <p class="texto-suave mb-0">Publicações e notas técnicas cadastradas no Hub.</p>
+    </div>
+</div>
+
+@if (carregando)
+{
+    <div class="d-flex justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando posts...</span>
+        </div>
+    </div>
+}
+else if (posts.Count == 0)
+{
+    <div class="hub-card p-5 text-center">
+        <i class="bi bi-journal-x fs-1 texto-suave mb-2"></i>
+        <p class="texto-suave mb-0">Nenhum post encontrado.</p>
+    </div>
+}
+else
+{
+    <div class="hub-card">
+        <div class="table-responsive">
+            <table class="table table-hub">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Slug</th>
+                        <th>Resumo</th>
+                        <th>Publicado Em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in posts)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@p.Titulo</td>
+                            <td><code>@p.Slug</code></td>
+                            <td class="texto-suave">@p.Resumo</td>
+                            <td>@(p.PublicadoEm.HasValue ? p.PublicadoEm.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private bool carregando = true;
+    private IReadOnlyList<PostResumoDto> posts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            posts = await Api.ListarPostsAsync();
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+}
+

@@ -50,12 +50,13 @@ graph TD
 | **`Vanderluiz.Hub.Infrastructure`** | Acesso a dados e comunicação com ferramentas externas. | `HubDbContext`, Mapeamento com Fluent API (`Configurations`), Implementação dos repositórios (`ProjetoRepository`), Migrations, `DbInitializer` (seed). | Regras de apresentação ou controllers. |
 | **`Vanderluiz.Hub.Api`** | Exposição dos dados via HTTP RESTful para múltiplos clientes. | Controllers REST (`/api/projetos`, etc.), documentação interativa (OpenAPI + Scalar), políticas de CORS. | Lógica de negócio pesada (ela delega para os Services da Application). |
 | **`Vanderluiz.Hub.Mvc`** | Interface visual do portfólio para o usuário final. | Controllers MVC, Razor Views (`.cshtml`), ViewModels, CSS customizado, tema escuro, clientes HTTP (`ProjetoHttpService`). | Acesso direto a tabelas do banco no modo API. |
-| **`Vanderluiz.Hub.Blazor`** *(Etapa 3)* | Painel administrativo privado para gerenciar o conteúdo. | Componentes interativos Blazor, Dashboard, formulários de criação/edição. | Acesso direto a banco (consome a API via HTTP). |
+| **`Vanderluiz.Hub.Blazor`** | Painel administrativo interativo para gerenciar o conteúdo. | Componentes interativos Blazor, Dashboard com contadores, formulários reativos de criação/edição e exclusão com modal. | Acesso direto a banco (consome a API via HTTP com `HubApiClient`). |
 
 ---
 
-## 3. Fluxo de Execução de uma Requisição
+## 3. Fluxos de Execução na Prática
 
+### Fluxo 1: Visitante visualizando um projeto no MVC
 Quando um visitante acessa `https://seusite.com/projetos/gestao-de-equipamentos`:
 
 ```mermaid
@@ -81,6 +82,35 @@ sequenceDiagram
     API-->>HttpService: HTTP 200 JSON
     HttpService-->>MVC: Retorna DTO
     MVC-->>Visitante: Renderiza Razor View (HTML estilizado)
+```
+
+### Fluxo 2: Administrador criando/editando um projeto no Blazor
+Quando você cadastra ou edita um projeto no Painel Admin (`/projetos`):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant Blazor as Hub.Blazor (Componente Projetos.razor)
+    participant Client as HubApiClient
+    participant API as Hub.Api (ProjetosController)
+    participant Service as ProjetoService (Application)
+    participant Repo as ProjetoRepository (Infrastructure)
+    participant DB as SQL Server
+
+    Admin->>Blazor: Preenche formulário no modal e clica em Salvar
+    Blazor->>Client: CriarProjetoAsync(inputDto)
+    Client->>API: POST /api/projetos (JSON body)
+    API->>Service: CriarAsync(inputDto)
+    Service->>Service: Valida slug com SlugHelper
+    Service->>Repo: AdicionarAsync(projeto)
+    Repo->>DB: INSERT INTO Projetos ...
+    DB-->>Repo: Id gerado
+    Repo-->>Service: Sucesso
+    Service-->>API: Retorna ProjetoDetalheDto
+    API-->>Client: HTTP 201 Created (com novo projeto)
+    Client-->>Blazor: Resposta de sucesso
+    Blazor->>Blazor: Fecha modal, exibe alerta verde e atualiza tabela reativamente
 ```
 
 ---

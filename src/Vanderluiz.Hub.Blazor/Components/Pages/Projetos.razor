@@ -1,0 +1,402 @@
+@page "/projetos"
+@inject HubApiClient Api
+
+<PageTitle>Gerenciar Projetos · Hub Admin</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 fw-bold mb-1">Gerenciador de Projetos</h1>
+        <p class="texto-suave mb-0">Cadastre, edite ou remova projetos exibidos no portfólio.</p>
+    </div>
+    <button class="btn btn-hub" @onclick="AbrirModalCriacao">
+        <i class="bi bi-plus-lg me-1"></i> Novo Projeto
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(mensagemAlerta))
+{
+    <div class="alert alert-@(tipoAlerta) alert-dismissible fade show" role="alert">
+        @mensagemAlerta
+        <button type="button" class="btn-close" @onclick="() => mensagemAlerta = null"></button>
+    </div>
+}
+
+<!-- FILTRO DE BUSCA -->
+<div class="hub-card p-3 mb-4">
+    <div class="input-group">
+        <span class="input-group-text bg-transparent border-end-0 text-white-50"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control border-start-0" placeholder="Buscar projeto por título ou tecnologia..."
+               @bind="termoBusca" @bind:event="oninput" />
+    </div>
+</div>
+
+@if (carregando)
+{
+    <div class="d-flex justify-content-center p-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando projetos...</span>
+        </div>
+    </div>
+}
+else
+{
+    var filtrados = projetos
+        .Where(p => string.IsNullOrWhiteSpace(termoBusca) ||
+                    p.Titulo.Contains(termoBusca, StringComparison.OrdinalIgnoreCase) ||
+                    p.Tecnologias.Any(t => t.Nome.Contains(termoBusca, StringComparison.OrdinalIgnoreCase)))
+        .ToList();
+
+    if (filtrados.Count == 0)
+    {
+        <div class="hub-card p-5 text-center">
+            <i class="bi bi-inbox fs-1 texto-suave mb-2"></i>
+            <p class="texto-suave mb-0">Nenhum projeto encontrado.</p>
+        </div>
+    }
+    else
+    {
+        <div class="hub-card">
+            <div class="table-responsive">
+                <table class="table table-hub">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Status</th>
+                            <th>Destaque</th>
+                            <th>Tecnologias</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in filtrados)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">@p.Titulo</div>
+                                    <small class="texto-suave">/@p.Slug</small>
+                                </td>
+                                <td>
+                                    <span class="status-badge @ObterCssStatus(p.Status)">@p.Status</span>
+                                </td>
+                                <td>
+                                    @if (p.Destaque)
+                                    {
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>Sim</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="texto-suave">Não</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var t in p.Tecnologias)
+                                        {
+                                            <span class="tag">@t.Nome</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-info me-1" title="Editar" @onclick="() => AbrirModalEdicao(p.Id)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => ConfirmarExclusao(p)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+<!-- MODAL DE CADASTRO / EDIÇÃO -->
+@if (exibirModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">@(projetoEdicaoId.HasValue ? "Editar Projeto" : "Novo Projeto")</h5>
+                    <button type="button" class="btn-close" @onclick="FecharModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="inputModel" OnValidSubmit="SalvarProjetoAsync">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger mb-3" />
+
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Título *</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Titulo" placeholder="Ex: Gestão de Equipamentos" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Slug (opcional)</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Slug" placeholder="auto-gerado" />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Resumo *</label>
+                                <InputText class="form-control" @bind-Value="inputModel.Resumo" placeholder="Breve frase de destaque" required />
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label">Descrição Completa *</label>
+                                <InputTextArea class="form-control" rows="4" @bind-Value="inputModel.Descricao" placeholder="Explique sobre o projeto, tecnologias e desafios enfrentados..." required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">URL do Repositório</label>
+                                <InputText class="form-control" @bind-Value="inputModel.UrlRepositorio" placeholder="https://github.com/..." />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">URL da Demonstração</label>
+                                <InputText class="form-control" @bind-Value="inputModel.UrlDemo" placeholder="https://..." />
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label">Status</label>
+                                <InputSelect class="form-select" @bind-Value="inputModel.Status">
+                                    <option value="@StatusProjeto.EmAndamento">Em Andamento</option>
+                                    <option value="@StatusProjeto.Concluido">Concluído</option>
+                                    <option value="@StatusProjeto.Planejado">Planejado</option>
+                                    <option value="@StatusProjeto.Pausado">Pausado</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Data de Início</label>
+                                <InputDate class="form-control" @bind-Value="inputModel.DataInicio" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Data de Término</label>
+                                <InputDate class="form-control" @bind-Value="inputModel.DataFim" />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch mt-2">
+                                    <InputCheckbox class="form-check-input" id="checkDestaque" @bind-Value="inputModel.Destaque" />
+                                    <label class="form-check-label fw-semibold" for="checkDestaque">Exibir em destaque na página inicial</label>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-semibold mb-2">Tecnologias Utilizadas</label>
+                                <div class="d-flex flex-wrap gap-2 p-3 rounded-3" style="background: var(--hub-bg); border: 1px solid var(--hub-border);">
+                                    @foreach (var tec in todasTecnologias)
+                                    {
+                                        var selecionada = inputModel.TecnologiaIds.Contains(tec.Id);
+                                        <button type="button" class="btn btn-sm @(selecionada ? "btn-primary" : "btn-outline-secondary")"
+                                                @onclick="() => AlternarTecnologia(tec.Id)">
+                                            @tec.Nome
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer px-0 pb-0 mt-4">
+                            <button type="button" class="btn btn-hub-outline" @onclick="FecharModal">Cancelar</button>
+                            <button type="submit" class="btn btn-hub" disabled="@salvando">
+                                @if (salvando)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                Salvar Projeto
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
+@if (projetoParaExcluir is not null)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.7);" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-danger">
+                    <h5 class="modal-title text-danger fw-bold"><i class="bi bi-exclamation-triangle me-2"></i>Excluir Projeto</h5>
+                    <button type="button" class="btn-close" @onclick="() => projetoParaExcluir = null"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza de que deseja excluir permanentemente o projeto <strong>@projetoParaExcluir.Titulo</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-hub-outline" @onclick="() => projetoParaExcluir = null">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmarExclusaoFinalAsync">Confirmar Exclusão</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool carregando = true;
+    private bool salvando = false;
+    private bool exibirModal = false;
+    private string termoBusca = string.Empty;
+
+    private string? mensagemAlerta;
+    private string tipoAlerta = "success";
+
+    private IReadOnlyList<ProjetoResumoDto> projetos = [];
+    private IReadOnlyList<TecnologiaDto> todasTecnologias = [];
+
+    private int? projetoEdicaoId;
+    private ProjetoInputDto inputModel = new();
+    private ProjetoResumoDto? projetoParaExcluir;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarDadosAsync();
+    }
+
+    private async Task CarregarDadosAsync()
+    {
+        try
+        {
+            carregando = true;
+            var tProjetos = Api.ListarProjetosAsync();
+            var tTecnologias = Api.ListarTecnologiasAsync();
+
+            await Task.WhenAll(tProjetos, tTecnologias);
+
+            projetos = await tProjetos;
+            todasTecnologias = await tTecnologias;
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao carregar dados: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private void AbrirModalCriacao()
+    {
+        projetoEdicaoId = null;
+        inputModel = new ProjetoInputDto
+        {
+            Status = StatusProjeto.EmAndamento,
+            DataInicio = DateOnly.FromDateTime(DateTime.Today),
+            Destaque = true,
+            TecnologiaIds = []
+        };
+        exibirModal = true;
+    }
+
+    private async Task AbrirModalEdicao(int id)
+    {
+        try
+        {
+            var detalhe = await Api.ObterProjetoPorIdAsync(id);
+            if (detalhe is null) return;
+
+            projetoEdicaoId = id;
+            inputModel = new ProjetoInputDto
+            {
+                Titulo = detalhe.Titulo,
+                Slug = detalhe.Slug,
+                Resumo = detalhe.Resumo,
+                Descricao = detalhe.Descricao,
+                UrlRepositorio = detalhe.UrlRepositorio,
+                UrlDemo = detalhe.UrlDemo,
+                ImagemUrl = detalhe.ImagemUrl,
+                Status = detalhe.Status,
+                Destaque = detalhe.Destaque,
+                DataInicio = detalhe.DataInicio,
+                DataFim = detalhe.DataFim,
+                TecnologiaIds = detalhe.Tecnologias.Select(t => t.Id).ToList()
+            };
+            exibirModal = true;
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao carregar detalhes: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private void AlternarTecnologia(int id)
+    {
+        if (inputModel.TecnologiaIds.Contains(id))
+            inputModel.TecnologiaIds.Remove(id);
+        else
+            inputModel.TecnologiaIds.Add(id);
+    }
+
+    private async Task SalvarProjetoAsync()
+    {
+        try
+        {
+            salvando = true;
+            if (projetoEdicaoId.HasValue)
+            {
+                await Api.AtualizarProjetoAsync(projetoEdicaoId.Value, inputModel);
+                mensagemAlerta = "Projeto atualizado com sucesso!";
+            }
+            else
+            {
+                await Api.CriarProjetoAsync(inputModel);
+                mensagemAlerta = "Projeto cadastrado com sucesso!";
+            }
+
+            tipoAlerta = "success";
+            exibirModal = false;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Falha ao salvar: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+        finally
+        {
+            salvando = false;
+        }
+    }
+
+    private void ConfirmarExclusao(ProjetoResumoDto p)
+    {
+        projetoParaExcluir = p;
+    }
+
+    private async Task ConfirmarExclusaoFinalAsync()
+    {
+        if (projetoParaExcluir is null) return;
+
+        try
+        {
+            await Api.RemoverProjetoAsync(projetoParaExcluir.Id);
+            mensagemAlerta = $"Projeto '{projetoParaExcluir.Titulo}' excluído com sucesso!";
+            tipoAlerta = "success";
+            projetoParaExcluir = null;
+            await CarregarDadosAsync();
+        }
+        catch (Exception ex)
+        {
+            mensagemAlerta = $"Erro ao excluir: {ex.Message}";
+            tipoAlerta = "danger";
+        }
+    }
+
+    private void FecharModal() => exibirModal = false;
+
+    private string ObterCssStatus(StatusProjeto status) => status switch
+    {
+        StatusProjeto.Concluido => "status-concluido",
+        StatusProjeto.EmAndamento => "status-andamento",
+        StatusProjeto.Pausado => "status-pausado",
+        _ => "status-planejado"
+    };
+}
+
