@@ -6,25 +6,16 @@ namespace Vanderluiz.Hub.Blazor.Services;
 /// </summary>
 public class AdminStateService
 {
-    private const string ChavePadrao = "hub-admin-2026";
-
     public bool EstaAutenticado { get; private set; }
     public string? ChaveAdmin { get; private set; }
 
     public event Action? OnChange;
 
-    public bool Autenticar(string senha)
+    public void DefinirAutenticado(string chave)
     {
-        // Chave padrão ou configurada para o portfólio
-        if (senha.Trim() == ChavePadrao)
-        {
-            EstaAutenticado = true;
-            ChaveAdmin = senha.Trim();
-            NotificarMudanca();
-            return true;
-        }
-
-        return false;
+        EstaAutenticado = true;
+        ChaveAdmin = chave.Trim();
+        NotificarMudanca();
     }
 
     public void Sair()
@@ -36,4 +27,3 @@ public class AdminStateService
 
     private void NotificarMudanca() => OnChange?.Invoke();
 }
-

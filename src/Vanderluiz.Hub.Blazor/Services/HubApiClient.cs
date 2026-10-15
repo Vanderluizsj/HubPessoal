@@ -35,6 +35,22 @@ public class HubApiClient
     }
 
     // ==========================================
+    // AUTENTICAÇÃO
+    // ==========================================
+    public async Task<bool> ValidarLoginAsync(string chave, CancellationToken ct = default)
+    {
+        try
+        {
+            var resposta = await _http.PostAsJsonAsync("/api/auth/login", new { chave }, ct);
+            return resposta.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // ==========================================
     // PROJETOS
     // ==========================================
     public async Task<IReadOnlyList<ProjetoResumoDto>> ListarProjetosAsync(bool somenteDestaques = false, CancellationToken ct = default)
