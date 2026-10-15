@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Vanderluiz.Hub.Api/Vanderluiz.Hub.Api.csproj" />
     <Project Path="src/Vanderluiz.Hub.Application/Vanderluiz.Hub.Application.csproj" />
     <Project Path="src/Vanderluiz.Hub.Domain/Vanderluiz.Hub.Domain.csproj" />
     <Project Path="src/Vanderluiz.Hub.Infrastructure/Vanderluiz.Hub.Infrastructure.csproj" />

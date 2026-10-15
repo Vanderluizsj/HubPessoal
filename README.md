@@ -1,62 +1,67 @@
 # Vanderluiz.Hub
 
-Hub pessoal / portfólio construído em **ASP.NET Core (.NET 10)** com arquitetura em camadas.
+Hub pessoal / portfólio construído em **ASP.NET Core (.NET 10)** com arquitetura limpa em camadas (Clean Architecture) e consumo via **Web API RESTful**.
 
-> Ideias originais em [`.docs/estrutura.txt`](.docs/estrutura.txt) e [`.docs/passo a passo.txt`](.docs/passo%20a%20passo.txt).
+> 📖 **Documentação completa:**
+> - [Guia de Arquitetura & Diagramas](docs/ARQUITETURA.md)
+> - [Guia do Desenvolvedor & Passo a Passo](docs/GUIA_DO_DESENVOLVEDOR.md)
+> - [Ideias e Planejamento Original](.docs/estrutura.txt)
 
-## Arquitetura (Etapa 1)
+---
+
+## 🏛️ Estrutura da Solução
 
 ```
 src/
-├── Vanderluiz.Hub.Domain          → Entidades (Projeto, Tecnologia, Experiencia, Formacao, Post) e Enums
-├── Vanderluiz.Hub.Application     → DTOs, interfaces (serviços e repositórios), serviços e mapeamentos
-├── Vanderluiz.Hub.Infrastructure  → EF Core + SQL Server: DbContext, configurações, repositórios, migrations, seed
-└── Vanderluiz.Hub.Mvc             → Front-end MVC (controllers, views, view models, wwwroot)
+├── Vanderluiz.Hub.Domain          → Entidades e Enums (modelos puros de negócio)
+├── Vanderluiz.Hub.Application     → DTOs, Interfaces de serviço/repositório, Mappings e Casos de Uso
+├── Vanderluiz.Hub.Infrastructure  → EF Core 10, SQL Server, Mapeamentos Fluent API, Repositories e Seed
+├── Vanderluiz.Hub.Api             → Web API RESTful documentada com Scalar/OpenAPI
+└── Vanderluiz.Hub.Mvc             → Front-end Web MVC moderno com tema escuro (Dark Theme)
 ```
 
-Dependências: `Mvc → Application + Infrastructure`, `Infrastructure → Application → Domain`.
+---
 
-## Rotas
+## 🚀 Como Executar
 
-| URL | Página |
-|-----|--------|
-| `/` | Início (destaques, stack, últimos posts) |
-| `/sobre` | Sobre mim |
-| `/trajetoria` | Experiência e formação (timeline) |
-| `/projetos` | Lista de projetos |
-| `/projetos/{slug}` | Detalhe (ex.: `/projetos/gestao-de-equipamentos`) |
-| `/tecnologias` | Tecnologias por categoria e nível |
-| `/blog`, `/blog/{slug}` | Posts publicados |
-| `/contato` | Canais de contato |
-
-## Como rodar
-
-1. Copie `src/Vanderluiz.Hub.Mvc/appsettings.Example.json` para `appsettings.json` (este arquivo está no `.gitignore`).
-2. Preencha `ConnectionStrings:HubDb` com o seu SQL Server e a seção `Perfil` com seus dados.
-3. Rode:
-
-   ```powershell
-   dotnet run --project src/Vanderluiz.Hub.Mvc
-   ```
-
-   Com `Database:InicializarAoIniciar = true`, a aplicação aplica as migrations e cria dados de exemplo
-   (apenas se o banco estiver vazio). Edite o seed em
-   `src/Vanderluiz.Hub.Infrastructure/Data/DbInitializer.cs`.
-
-### Migrations
-
+### 1. Iniciar o SQL Server (Docker)
 ```powershell
-# criar uma nova migration
-dotnet ef migrations add NomeDaMigration -p src/Vanderluiz.Hub.Infrastructure -s src/Vanderluiz.Hub.Mvc -o Migrations
-
-# aplicar manualmente
-dotnet ef database update -p src/Vanderluiz.Hub.Infrastructure -s src/Vanderluiz.Hub.Mvc
+docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Prov@ndd11" -p 1433:1433 --name sqlserver-hub -d mcr.microsoft.com/mssql/server:2022-latest
 ```
 
-## Próximas etapas
+### 2. Iniciar a Web API
+```powershell
+dotnet run --project src/Vanderluiz.Hub.Api
+```
+- **Documentação Interativa (Scalar):** [`https://localhost:7066/scalar/v1`](https://localhost:7066/scalar/v1)
 
-- [x] **Etapa 1** — MVC + Application + Domain + Infrastructure + SQL Server
-- [ ] **Etapa 2** — Criar `Vanderluiz.Hub.Api` (CRUD já existe em `ProjetoService`) e fazer o MVC consumir a API
-- [ ] **Etapa 3** — `Vanderluiz.Hub.Blazor` com o painel `/admin` (dashboard + CRUD)
-- [ ] **Etapa 4** — Recursos avançados (autenticação, cache, Markdown nos posts, deploy, testes...)
+### 3. Iniciar o Front-end MVC
+Em outro terminal:
+```powershell
+dotnet run --project src/Vanderluiz.Hub.Mvc
+```
+- Acesse no navegador: [`https://localhost:7236`](https://localhost:7236)
 
+---
+
+## 🗺️ Rotas do Portal (MVC)
+
+| URL | Descrição |
+| :--- | :--- |
+| `/` | Início com apresentação, hero com terminal interativo, projetos em destaque e stack |
+| `/sobre` | História pessoal, motivações e objetivos profissionais |
+| `/trajetoria` | Linha do tempo de experiências profissionais e formação acadêmica |
+| `/projetos` | Lista completa de projetos |
+| `/projetos/{slug}` | Detalhes do projeto (ex: `/projetos/gestao-de-equipamentos`) |
+| `/tecnologias` | Tecnologias categorizadas com nível de domínio e barras visuais |
+| `/blog` | Artigos e anotações técnicas com rotas individuais por slug |
+| `/contato` | Links diretos para GitHub, LinkedIn e E-mail |
+
+---
+
+## 🛣️ Roadmap de Evolução
+
+- [x] **Etapa 1:** Estrutura inicial (Domain, Application, Infrastructure, SQL Server e MVC)
+- [x] **Etapa 2:** Criação da Web API RESTful com OpenAPI + Scalar e desacoplamento do MVC via HTTP
+- [ ] **Etapa 3:** Criação do painel administrativo com **Blazor** (`Vanderluiz.Hub.Blazor`) para gerenciar projetos, posts e trajetória
+- [ ] **Etapa 4:** Recursos avançados (Autenticação JWT/Identity, suporte a Markdown nos posts, cache e deploy automatizado)

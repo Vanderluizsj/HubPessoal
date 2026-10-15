@@ -1,9 +1,11 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using Vanderluiz.Hub.Application;
+using Vanderluiz.Hub.Application.Interfaces;
 using Vanderluiz.Hub.Infrastructure;
 using Vanderluiz.Hub.Infrastructure.Data;
 using Vanderluiz.Hub.Mvc.Options;
+using Vanderluiz.Hub.Mvc.Services.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,16 +14,43 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.Configure<PerfilOptions>(builder.Configuration.GetSection(PerfilOptions.Secao));
 
-var connectionString = builder.Configuration.GetConnectionString("HubDb")
-    ?? throw new InvalidOperationException("Connection string 'HubDb' não configurada.");
+var usarApi = builder.Configuration.GetValue<bool>("Api:UsarApi");
 
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(connectionString);
+if (usarApi)
+{
+    // =========================================================================
+    // ETAPA 2: MVC consome os dados através da Web API (Vanderluiz.Hub.Api)
+    // =========================================================================
+    var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "https://localhost:7066";
+
+    void ConfigurarClient(HttpClient client)
+    {
+        client.BaseAddress = new Uri(apiBaseUrl);
+        client.DefaultRequestHeaders.Add("Accept", "application/json");
+        client.Timeout = TimeSpan.FromSeconds(15);
+    }
+
+    builder.Services.AddHttpClient<IProjetoService, ProjetoHttpService>(ConfigurarClient);
+    builder.Services.AddHttpClient<ITecnologiaService, TecnologiaHttpService>(ConfigurarClient);
+    builder.Services.AddHttpClient<IPostService, PostHttpService>(ConfigurarClient);
+    builder.Services.AddHttpClient<ITrajetoriaService, TrajetoriaHttpService>(ConfigurarClient);
+}
+else
+{
+    // =========================================================================
+    // ETAPA 1: MVC consome Application e Infrastructure diretamente (Monólito)
+    // =========================================================================
+    var connectionString = builder.Configuration.GetConnectionString("HubDb")
+        ?? throw new InvalidOperationException("Connection string 'HubDb' não configurada.");
+
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(connectionString);
+}
 
 var app = builder.Build();
 
-// Aplica migrations e seed de exemplo (controlado por "Database:InicializarAoIniciar").
-if (app.Configuration.GetValue("Database:InicializarAoIniciar", app.Environment.IsDevelopment()))
+// Se não estiver usando API externa, o próprio MVC pode rodar o DbInitializer
+if (!usarApi && app.Configuration.GetValue("Database:InicializarAoIniciar", app.Environment.IsDevelopment()))
 {
     using var scope = app.Services.CreateScope();
     try
@@ -46,7 +75,6 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/erro");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -63,6 +91,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();
