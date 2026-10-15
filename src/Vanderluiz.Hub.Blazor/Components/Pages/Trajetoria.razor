@@ -313,9 +313,7 @@ else
     </div>
 }
 
-<AdminLoginModal Exibir="@exibirLoginModal"
-                 AoAutenticar="AoAutenticarAdmin"
-                 AoCancelar="() => exibirLoginModal = false" />
+<AdminLoginModal @bind-Exibir="exibirLoginModal" />
 
 @code {
     private bool carregando = true;
@@ -565,12 +563,6 @@ else
         {
             salvando = false;
         }
-    }
-
-    private void AoAutenticarAdmin()
-    {
-        exibirLoginModal = false;
-        ExibirAlerta("Acesso de Administrador confirmado com sucesso!");
     }
 
     private void ExibirAlerta(string mensagem, string tipo = "success")

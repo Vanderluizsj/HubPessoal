@@ -5,8 +5,6 @@ Hub pessoal / portfólio profissional construído em **ASP.NET Core (.NET 10)** 
 > 📖 **Documentação completa:**
 > - [Guia de Arquitetura & Diagramas](docs/ARQUITETURA.md)
 > - [Guia do Desenvolvedor & Passo a Passo](docs/GUIA_DO_DESENVOLVEDOR.md)
-> - [Ideias e Planejamento Original](.docs/estrutura.txt)
-
 ---
 
 ## 🏛️ Estrutura da Solução
