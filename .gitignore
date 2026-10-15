@@ -1,0 +1,60 @@
+# ==============================================================================
+# 1. BUILD E COMPILAÇÃO (.NET / BLAZOR)
+# ==============================================================================
+# Pastas geradas automaticamente ao rodar ou compilar o projeto
+[Bb]in/
+[Oo]bj/
+*.publishproj
+
+# Arquivos de cache e opções locais do usuário
+*.user
+*.userosscache
+*.sln.docstates
+
+# ==============================================================================
+# 2. SEGURANÇA E CONFIGURAÇÕES (SENHAS)
+# ==============================================================================
+# Protege suas senhas do banco, admin e Neogrid
+appsettings.json
+appsettings.Development*.json
+.env
+.env.*
+secret.json
+
+# ==============================================================================
+# 3. VISUAL STUDIO CODE
+# ==============================================================================
+# Ignora o cache do VS Code, mas mantém configurações úteis compartilhadas (como debug)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# ==============================================================================
+# 4. SISTEMA OPERACIONAL (LIXO DO WINDOWS E MAC)
+# ==============================================================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ==============================================================================
+# 5. LOGS E DIAGNÓSTICOS
+# ==============================================================================
+*.log
+*.err
+
+# ==============================================================================
+# 6. Iscache e arquivos temporários
+# ==============================================================================
+*.Iscache

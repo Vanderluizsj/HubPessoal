@@ -1,0 +1,25 @@
+@model IReadOnlyList<ProjetoResumoDto>
+@{
+    ViewData["Title"] = "Projetos";
+}
+<section class="container secao">
+    <h1 class="secao-titulo mb-2"><span class="secao-numero">#</span> Projetos</h1>
+    <p class="texto-suave mb-5">Uma seleção do que venho construindo — profissionais, pessoais e de estudo.</p>
+
+    @if (Model.Count == 0)
+    {
+        <p class="texto-suave">Nenhum projeto cadastrado ainda.</p>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var projeto in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <partial name="_ProjetoCard" model="projeto" />
+                </div>
+            }
+        </div>
+    }
+</section>
+

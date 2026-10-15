@@ -1,0 +1,47 @@
+Mas tem uma decisão importante
+
+Eu não criaria MVC + Blazor + API todos no primeiro dia.
+
+Isso provavelmente vai te fazer perder tempo com infraestrutura em vez de aprender.
+
+Eu faria a evolução:
+
+Etapa 1
+MVC
+ │
+ ├── Application
+ ├── Domain
+ └── Infrastructure
+          │
+       SQL Server
+
+Constrói o Hub e coloca no ar.
+
+Etapa 2
+
+Extrai/cria:
+
+       Web API
+          │
+          ▼
+    Application
+          │
+          ▼
+ Infrastructure
+
+E faz o MVC consumir a API.
+
+Etapa 3
+
+Cria:
+
+Blazor
+   │
+   ▼
+ Web API
+
+E coloca o administrativo em Blazor.
+
+Etapa 4
+
+Começa a adicionar coisas mais avançadas.

@@ -1,0 +1,37 @@
+@model TecnologiasViewModel
+@{
+    ViewData["Title"] = "Tecnologias";
+}
+<section class="container secao">
+    <h1 class="secao-titulo mb-2"><span class="secao-numero">#</span> Tecnologias</h1>
+    <p class="texto-suave mb-5">Ferramentas e tecnologias com as quais trabalho, agrupadas por área.</p>
+
+    @foreach (var grupo in Model.PorCategoria)
+    {
+        <h2 class="h5 texto-mono text-uppercase mt-5 mb-3">@grupo.Key.Rotulo()</h2>
+        <div class="row g-3">
+            @foreach (var t in grupo)
+            {
+                <div class="col-sm-6 col-lg-4">
+                    <div class="hub-card p-3 d-flex align-items-center gap-3">
+                        <i class="tec-icone @(t.IconeClasse ?? "bi bi-code-square")"></i>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between">
+                                <strong>@t.Nome</strong>
+                                <span class="small texto-suave">@t.Nivel.Rotulo()</span>
+                            </div>
+                            <div class="nivel-barra mt-2" role="progressbar" aria-valuenow="@t.Nivel.Percentual()" aria-valuemin="0" aria-valuemax="100">
+                                <div style="width:@(t.Nivel.Percentual())%"></div>
+                            </div>
+                            @if (t.QuantidadeProjetos > 0)
+                            {
+                                <span class="small texto-suave">@t.QuantidadeProjetos projeto(s)</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</section>
+

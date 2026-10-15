@@ -1,0 +1,37 @@
+@{
+    var perfil = PerfilAccessor.Value;
+    ViewData["Title"] = "Sobre";
+}
+<section class="container secao">
+    <div class="row g-5 align-items-center">
+        <div class="col-lg-4 text-center">
+            @if (!string.IsNullOrWhiteSpace(perfil.FotoUrl))
+            {
+                <img src="@perfil.FotoUrl" alt="Foto de @perfil.Nome" class="foto-perfil" />
+            }
+            else
+            {
+                <div class="foto-perfil foto-placeholder">@(string.IsNullOrEmpty(perfil.Nome) ? "?" : perfil.Nome[..1])</div>
+            }
+        </div>
+        <div class="col-lg-8">
+            <h1 class="secao-titulo mb-4"><span class="secao-numero">#</span> Sobre mim</h1>
+            <p class="lead">@perfil.Bio</p>
+            <p class="texto-suave">
+                <!-- Edite este texto com sua história: como começou na programação, o que te motiva,
+                     áreas de interesse e o que busca profissionalmente. -->
+                Sou apaixonado por construir software bem estruturado, com foco em boas práticas,
+                arquitetura limpa e entrega de valor. Este Hub é meu laboratório pessoal: aqui documento
+                minha trajetória, os projetos que desenvolvo e o que venho estudando.
+            </p>
+            <p class="texto-suave">
+                Fora do código, gosto de aprender coisas novas, compartilhar conhecimento e
+                acompanhar a evolução do ecossistema .NET.
+            </p>
+            <div class="d-flex flex-wrap gap-3 mt-4">
+                <a href="/trajetoria" class="btn btn-hub"><i class="bi bi-signpost-split me-2"></i>Minha trajetória</a>
+                <a href="/contato" class="btn btn-hub-outline"><i class="bi bi-envelope me-2"></i>Contato</a>
+            </div>
+        </div>
+    </div>
+</section>

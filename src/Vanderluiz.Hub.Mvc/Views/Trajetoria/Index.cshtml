@@ -1,0 +1,42 @@
+@model TrajetoriaViewModel
+@{
+    ViewData["Title"] = "Trajetória";
+}
+<section class="container secao">
+    <h1 class="secao-titulo mb-2"><span class="secao-numero">#</span> Trajetória</h1>
+    <p class="texto-suave mb-5">Experiência profissional e formação.</p>
+
+    <div class="row g-5">
+        <div class="col-lg-7">
+            <h2 class="h4 mb-4"><i class="bi bi-briefcase me-2 texto-destaque"></i>Experiência</h2>
+            <ol class="timeline">
+                @foreach (var e in Model.Experiencias)
+                {
+                    <li class="timeline-item @(e.Atual ? "atual" : "")">
+                        <p class="texto-mono small mb-1">@DisplayHelpers.Periodo(e.DataInicio, e.DataFim)</p>
+                        <h3 class="h5 mb-1">@e.Cargo</h3>
+                        <p class="texto-destaque mb-2">@(string.IsNullOrWhiteSpace(e.Local) ? e.Empresa : $"{e.Empresa} · {e.Local}")</p>
+                        <p class="texto-pre texto-suave mb-0">@e.Descricao</p>
+                    </li>
+                }
+            </ol>
+        </div>
+        <div class="col-lg-5">
+            <h2 class="h4 mb-4"><i class="bi bi-mortarboard me-2 texto-destaque"></i>Formação</h2>
+            <ol class="timeline">
+                @foreach (var f in Model.Formacoes)
+                {
+                    <li class="timeline-item @(f.EmAndamento ? "atual" : "")">
+                        <p class="texto-mono small mb-1">@DisplayHelpers.Periodo(f.DataInicio, f.DataFim, "em andamento")</p>
+                        <h3 class="h5 mb-1">@f.Curso</h3>
+                        <p class="texto-destaque mb-2">@f.Tipo.Rotulo() · @f.Instituicao</p>
+                        @if (!string.IsNullOrWhiteSpace(f.Descricao))
+                        {
+                            <p class="texto-suave mb-0">@f.Descricao</p>
+                        }
+                    </li>
+                }
+            </ol>
+        </div>
+    </div>
+</section>

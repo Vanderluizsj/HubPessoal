@@ -1,0 +1,53 @@
+@model ProjetoDetalheDto
+@{
+    ViewData["Title"] = Model.Titulo;
+    ViewData["Description"] = Model.Resumo;
+}
+<article class="container secao">
+    <a href="/projetos" class="link-voltar"><i class="bi bi-arrow-left me-1"></i>Todos os projetos</a>
+
+    <header class="mt-4 mb-5">
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <h1 class="display-6 fw-bold mb-0">@Model.Titulo</h1>
+            <span class="status-badge @Model.Status.CssClasse()">@Model.Status.Rotulo()</span>
+        </div>
+        <p class="lead texto-suave">@Model.Resumo</p>
+        <p class="texto-mono small">
+            <i class="bi bi-calendar3 me-1"></i>@DisplayHelpers.Periodo(Model.DataInicio, Model.DataFim, "em andamento")
+        </p>
+        <div class="d-flex flex-wrap gap-3 mt-3">
+            @if (!string.IsNullOrWhiteSpace(Model.UrlRepositorio))
+            {
+                <a href="@Model.UrlRepositorio" target="_blank" rel="noopener" class="btn btn-hub-outline"><i class="bi bi-github me-2"></i>Repositório</a>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.UrlDemo))
+            {
+                <a href="@Model.UrlDemo" target="_blank" rel="noopener" class="btn btn-hub"><i class="bi bi-box-arrow-up-right me-2"></i>Ver online</a>
+            }
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.ImagemUrl))
+    {
+        <img src="@Model.ImagemUrl" alt="@Model.Titulo" class="img-fluid rounded-4 mb-5 projeto-capa" />
+    }
+
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <h2 class="h4 mb-3">Sobre o projeto</h2>
+            <div class="texto-pre texto-suave">@Model.Descricao</div>
+        </div>
+        <aside class="col-lg-4">
+            <div class="hub-card p-4">
+                <h2 class="h6 text-uppercase texto-mono mb-3">Tecnologias</h2>
+                <ul class="list-unstyled mb-0 tec-lista">
+                    @foreach (var t in Model.Tecnologias)
+                    {
+                        <li><i class="@(t.IconeClasse ?? "bi bi-code-square") me-2"></i>@t.Nome</li>
+                    }
+                </ul>
+            </div>
+        </aside>
+    </div>
+</article>
+

@@ -1,0 +1,15 @@
+@model PostDto
+@{
+    ViewData["Title"] = Model.Titulo;
+    ViewData["Description"] = Model.Resumo;
+}
+<article class="container secao post-container">
+    <a href="/blog" class="link-voltar"><i class="bi bi-arrow-left me-1"></i>Todos os posts</a>
+    <header class="mt-4 mb-5">
+        <p class="texto-mono small mb-2">@Model.PublicadoEm?.ToLocalTime().ToString("dd 'de' MMMM 'de' yyyy")</p>
+        <h1 class="display-6 fw-bold">@Model.Titulo</h1>
+        <p class="lead texto-suave">@Model.Resumo</p>
+    </header>
+    <div class="texto-pre post-conteudo">@Model.Conteudo</div>
+</article>
+

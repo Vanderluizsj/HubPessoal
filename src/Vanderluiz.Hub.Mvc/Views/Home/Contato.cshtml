@@ -1,0 +1,42 @@
+@{
+    var perfil = PerfilAccessor.Value;
+    ViewData["Title"] = "Contato";
+}
+<section class="container secao">
+    <h1 class="secao-titulo mb-2"><span class="secao-numero">#</span> Contato</h1>
+    <p class="texto-suave mb-5">Escolha o canal que preferir — respondo assim que possível.</p>
+
+    <div class="row g-4">
+        @if (!string.IsNullOrWhiteSpace(perfil.Email))
+        {
+            <div class="col-md-4">
+                <a class="hub-card contato-card" href="mailto:@perfil.Email">
+                    <i class="bi bi-envelope-fill"></i>
+                    <h2 class="h5">E-mail</h2>
+                    <span class="texto-suave">@perfil.Email</span>
+                </a>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(perfil.LinkedIn))
+        {
+            <div class="col-md-4">
+                <a class="hub-card contato-card" href="@perfil.LinkedIn" target="_blank" rel="noopener">
+                    <i class="bi bi-linkedin"></i>
+                    <h2 class="h5">LinkedIn</h2>
+                    <span class="texto-suave">Conecte-se comigo</span>
+                </a>
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(perfil.GitHub))
+        {
+            <div class="col-md-4">
+                <a class="hub-card contato-card" href="@perfil.GitHub" target="_blank" rel="noopener">
+                    <i class="bi bi-github"></i>
+                    <h2 class="h5">GitHub</h2>
+                    <span class="texto-suave">Veja meus repositórios</span>
+                </a>
+            </div>
+        }
+    </div>
+</section>
+

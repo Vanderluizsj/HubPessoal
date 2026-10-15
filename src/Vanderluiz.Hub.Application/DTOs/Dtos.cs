@@ -1,0 +1,81 @@
+using Vanderluiz.Hub.Domain.Enums;
+
+namespace Vanderluiz.Hub.Application.DTOs;
+
+public record TecnologiaTagDto(int Id, string Nome, string? IconeClasse);
+
+public record TecnologiaDto(
+    int Id,
+    string Nome,
+    CategoriaTecnologia Categoria,
+    NivelTecnologia Nivel,
+    string? IconeClasse,
+    int QuantidadeProjetos);
+
+public record ProjetoResumoDto(
+    int Id,
+    string Titulo,
+    string Slug,
+    string Resumo,
+    string? ImagemUrl,
+    StatusProjeto Status,
+    bool Destaque,
+    IReadOnlyList<TecnologiaTagDto> Tecnologias);
+
+public record ProjetoDetalheDto(
+    int Id,
+    string Titulo,
+    string Slug,
+    string Resumo,
+    string Descricao,
+    string? UrlRepositorio,
+    string? UrlDemo,
+    string? ImagemUrl,
+    StatusProjeto Status,
+    bool Destaque,
+    DateOnly DataInicio,
+    DateOnly? DataFim,
+    IReadOnlyList<TecnologiaTagDto> Tecnologias);
+
+/// <summary>Dados de entrada para criar/atualizar um projeto (usado pelo futuro admin/API).</summary>
+public class ProjetoInputDto
+{
+    public string Titulo { get; set; } = string.Empty;
+    public string? Slug { get; set; }
+    public string Resumo { get; set; } = string.Empty;
+    public string Descricao { get; set; } = string.Empty;
+    public string? UrlRepositorio { get; set; }
+    public string? UrlDemo { get; set; }
+    public string? ImagemUrl { get; set; }
+    public StatusProjeto Status { get; set; }
+    public bool Destaque { get; set; }
+    public int Ordem { get; set; }
+    public DateOnly DataInicio { get; set; }
+    public DateOnly? DataFim { get; set; }
+    public List<int> TecnologiaIds { get; set; } = new();
+}
+
+public record ExperienciaDto(
+    int Id,
+    string Cargo,
+    string Empresa,
+    string? Local,
+    string Descricao,
+    DateOnly DataInicio,
+    DateOnly? DataFim,
+    bool Atual);
+
+public record FormacaoDto(
+    int Id,
+    string Curso,
+    string Instituicao,
+    TipoFormacao Tipo,
+    string? Descricao,
+    DateOnly DataInicio,
+    DateOnly? DataFim,
+    bool EmAndamento);
+
+public record PostResumoDto(int Id, string Titulo, string Slug, string Resumo, DateTime? PublicadoEm);
+
+public record PostDto(int Id, string Titulo, string Slug, string Resumo, string Conteudo, DateTime? PublicadoEm);
+

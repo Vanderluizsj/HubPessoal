@@ -1,0 +1,29 @@
+@model ProjetoResumoDto
+<article class="hub-card projeto-card h-100">
+    <div class="projeto-card-topo">
+        @if (!string.IsNullOrWhiteSpace(Model.ImagemUrl))
+        {
+            <img src="@Model.ImagemUrl" alt="@Model.Titulo" class="projeto-img" loading="lazy" />
+        }
+        else
+        {
+            <div class="projeto-img projeto-img-placeholder"><i class="bi bi-code-slash"></i></div>
+        }
+    </div>
+    <div class="p-4 d-flex flex-column flex-grow-1">
+        <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+            <h3 class="h5 mb-0">
+                <a class="stretched-link link-titulo" href="/projetos/@Model.Slug">@Model.Titulo</a>
+            </h3>
+            <span class="status-badge @Model.Status.CssClasse()">@Model.Status.Rotulo()</span>
+        </div>
+        <p class="texto-suave flex-grow-1">@Model.Resumo</p>
+        <div class="tag-lista">
+            @foreach (var t in Model.Tecnologias)
+            {
+                <span class="tag">@t.Nome</span>
+            }
+        </div>
+    </div>
+</article>
+

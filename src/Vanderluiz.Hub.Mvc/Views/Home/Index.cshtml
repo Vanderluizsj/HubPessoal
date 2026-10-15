@@ -1,0 +1,124 @@
+@model HomeViewModel
+@{
+    var perfil = PerfilAccessor.Value;
+}
+
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <p class="hero-saudacao">Olá, eu sou</p>
+                <h1 class="hero-nome">@perfil.Nome</h1>
+                <h2 class="hero-titulo"><span class="texto-gradiente">@perfil.Titulo</span></h2>
+                <p class="hero-bio">@perfil.Bio</p>
+                <div class="d-flex flex-wrap gap-3 mt-4">
+                    <a href="/projetos" class="btn btn-hub btn-lg"><i class="bi bi-grid-1x2 me-2"></i>Ver projetos</a>
+                    <a href="/contato" class="btn btn-hub-outline btn-lg"><i class="bi bi-chat-dots me-2"></i>Fale comigo</a>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(perfil.Localizacao))
+                {
+                    <p class="texto-suave mt-4 mb-0"><i class="bi bi-geo-alt me-1"></i>@perfil.Localizacao</p>
+                }
+            </div>
+            <div class="col-lg-5">
+                @{
+                    var propriedades = new List<(string Nome, string Valor)>
+                    {
+                        ("Nome", perfil.Nome),
+                        ("Cargo", Model.ExperienciaAtual?.Cargo ?? perfil.Titulo)
+                    };
+                    if (Model.ExperienciaAtual is not null) propriedades.Add(("Empresa", Model.ExperienciaAtual.Empresa));
+                    var stack = Model.Tecnologias.Take(4).Select(t => t.Nome).ToList();
+                }
+                <div class="terminal">
+                    <div class="terminal-barra"><span></span><span></span><span></span></div>
+                    <div class="terminal-corpo">
+                        <div><span class="tk-kw">var</span> dev = <span class="tk-kw">new</span> <span class="tk-type">Desenvolvedor</span></div>
+                        <div>{</div>
+                        @foreach (var (nome, valor) in propriedades)
+                        {
+                            <div class="tk-ind">@nome = <span class="tk-str">"@valor"</span>,</div>
+                        }
+                        <div class="tk-ind">Stack = [<span class="tk-str">@string.Join(", ", stack.Select(s => $"\"{s}\""))</span>],</div>
+                        <div class="tk-ind">Disponivel = <span class="tk-kw">true</span></div>
+                        <div>};</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="secao">
+    <div class="container">
+        <div class="secao-cabecalho">
+            <h2 class="secao-titulo"><span class="secao-numero">01.</span> Projetos em destaque</h2>
+            <a href="/projetos" class="link-ver-todos">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        @if (Model.ProjetosDestaque.Count == 0)
+        {
+            <p class="texto-suave">Nenhum projeto cadastrado ainda.</p>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var projeto in Model.ProjetosDestaque)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <partial name="_ProjetoCard" model="projeto" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<section class="secao secao-alt">
+    <div class="container">
+        <div class="secao-cabecalho">
+            <h2 class="secao-titulo"><span class="secao-numero">02.</span> Stack</h2>
+            <a href="/tecnologias" class="link-ver-todos">Detalhes <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="stack-grid">
+            @foreach (var t in Model.Tecnologias)
+            {
+                <div class="stack-item" title="@t.Nome · @t.Nivel.Rotulo()">
+                    <i class="@(t.IconeClasse ?? "bi bi-code-square")"></i>
+                    <span>@t.Nome</span>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@if (Model.UltimosPosts.Count > 0)
+{
+    <section class="secao">
+        <div class="container">
+            <div class="secao-cabecalho">
+                <h2 class="secao-titulo"><span class="secao-numero">03.</span> Últimos posts</h2>
+                <a href="/blog" class="link-ver-todos">Ver blog <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <div class="row g-4">
+                @foreach (var post in Model.UltimosPosts)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <article class="hub-card p-4 h-100 position-relative">
+                            <p class="texto-mono small mb-2">@post.PublicadoEm?.ToLocalTime().ToString("dd MMM yyyy")</p>
+                            <h3 class="h5"><a class="stretched-link link-titulo" href="/blog/@post.Slug">@post.Titulo</a></h3>
+                            <p class="texto-suave mb-0">@post.Resumo</p>
+                        </article>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<section class="secao secao-cta">
+    <div class="container text-center">
+        <h2 class="h1 mb-3">Vamos conversar?</h2>
+        <p class="texto-suave mb-4">Estou aberto a novas oportunidades, parcerias e troca de ideias.</p>
+        <a href="/contato" class="btn btn-hub btn-lg"><i class="bi bi-send me-2"></i>Entrar em contato</a>
+    </div>
+</section>

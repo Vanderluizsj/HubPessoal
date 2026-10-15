@@ -1,0 +1,14 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Erro";
+}
+<section class="container secao text-center">
+    <p class="codigo-erro">Ops!</p>
+    <h1 class="h2 mb-3">Algo deu errado ao processar sua requisição.</h1>
+    <p class="texto-suave mb-4">Tente novamente em instantes.</p>
+    @if (Model?.ShowRequestId == true)
+    {
+        <p class="texto-suave small">ID da requisição: <code>@Model.RequestId</code></p>
+    }
+    <a href="/" class="btn btn-hub"><i class="bi bi-house-door me-2"></i>Voltar ao início</a>
+</section>
