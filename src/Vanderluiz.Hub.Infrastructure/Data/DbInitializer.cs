@@ -20,10 +20,39 @@ public class DbInitializer
         _logger = logger;
     }
 
+    /// <summary>Aplica as migrations pendentes e, em seguida, popula o banco caso esteja vazio.</summary>
     public async Task InicializarAsync(CancellationToken ct = default)
     {
-        await _db.Database.MigrateAsync(ct);
+        await MigrarAsync(ct);
+        await PopularAsync(ct);
+    }
 
+    /// <summary>
+    /// Aplica automaticamente as migrations pendentes (somente quando o provider é SQL Server,
+    /// evitando erro em providers como InMemory usados em testes).
+    /// </summary>
+    public async Task MigrarAsync(CancellationToken ct = default)
+    {
+        if (!_db.Database.IsSqlServer())
+        {
+            _logger.LogInformation("Provider não é SQL Server; migrations ignoradas.");
+            return;
+        }
+
+        var pendentes = (await _db.Database.GetPendingMigrationsAsync(ct)).ToList();
+        if (pendentes.Count == 0)
+        {
+            _logger.LogInformation("Banco de dados já está atualizado.");
+            return;
+        }
+
+        _logger.LogInformation("Aplicando {Quantidade} migration(s): {Migrations}", pendentes.Count, string.Join(", ", pendentes));
+        await _db.Database.MigrateAsync(ct);
+    }
+
+    /// <summary>Insere dados de exemplo somente se o banco estiver vazio.</summary>
+    public async Task PopularAsync(CancellationToken ct = default)
+    {
         if (await _db.Tecnologias.AnyAsync(ct))
         {
             _logger.LogInformation("Banco já possui dados; seed ignorado.");

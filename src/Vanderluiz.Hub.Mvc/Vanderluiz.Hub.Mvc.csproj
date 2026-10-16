@@ -4,9 +4,18 @@
     <ProjectReference Include="..\Vanderluiz.Hub.Application\Vanderluiz.Hub.Application.csproj" />
     <ProjectReference Include="..\Vanderluiz.Hub.Infrastructure\Vanderluiz.Hub.Infrastructure.csproj" />
     <ProjectReference Include="..\Vanderluiz.Hub.Api\Vanderluiz.Hub.Api.csproj" />
-    <ProjectReference Include="..\Vanderluiz.Hub.Blazor\Vanderluiz.Hub.Blazor.csproj">
-      <Properties>StaticWebAssetBasePath=_content/Vanderluiz.Hub.Blazor</Properties>
-    </ProjectReference>
+    <ProjectReference Include="..\Vanderluiz.Hub.Blazor\Vanderluiz.Hub.Blazor.csproj" />
+  </ItemGroup>
+
+  <!--
+    O projeto Blazor (Web SDK) expõe seu wwwroot na raiz "/" do host unificado.
+    Como ele já contém o Bootstrap 5.3.3 em "lib/bootstrap", a cópia idêntica do MVC
+    gera conflito de Static Web Assets (mesmo caminho de destino). Removemos a cópia do MVC
+    e passamos a usar a do Blazor, que é servida no mesmo caminho (~/lib/bootstrap/...).
+  -->
+  <ItemGroup>
+    <Content Remove="wwwroot\lib\bootstrap\**" />
+    <None Include="wwwroot\lib\bootstrap\**" />
   </ItemGroup>
 
   <ItemGroup>

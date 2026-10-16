@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Vanderluiz.Hub.Application.DTOs;
 using Vanderluiz.Hub.Application.Interfaces;
 
@@ -10,47 +11,47 @@ namespace Vanderluiz.Hub.Blazor.Services;
 /// Suporta tanto o modo HTTP (quando conectado a uma API remota)
 /// quanto o modo in-process (modo monólito unificado, sem portas adicionais).
 /// </summary>
+/// <remarks>
+/// No modo in-process, cada chamada cria seu próprio escopo de DI (e portanto seu próprio DbContext).
+/// Isso é necessário porque um circuito Blazor Server vive por toda a sessão do usuário e as páginas
+/// disparam consultas em paralelo (Task.WhenAll) — o DbContext não suporta operações concorrentes.
+/// </remarks>
 public class HubApiClient
 {
     private readonly HttpClient? _http;
     private readonly AdminStateService _adminState;
-    private readonly IProjetoService? _projetoService;
-    private readonly ITecnologiaService? _tecnologiaService;
-    private readonly IPostService? _postService;
-    private readonly ITrajetoriaService? _trajetoriaService;
-    private readonly IPerfilService? _perfilService;
+    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly IConfiguration? _configuration;
 
+    /// <summary>Modo HTTP: consome a Vanderluiz.Hub.Api remota.</summary>
+    [ActivatorUtilitiesConstructor]
     public HubApiClient(HttpClient http, AdminStateService adminState)
     {
         _http = http;
         _adminState = adminState;
     }
 
-    public HubApiClient(
-        AdminStateService adminState,
-        IProjetoService projetoService,
-        ITecnologiaService tecnologiaService,
-        IPostService postService,
-        ITrajetoriaService trajetoriaService,
-        IPerfilService perfilService,
-        IConfiguration configuration)
+    /// <summary>Modo in-process: usa diretamente os serviços da camada Application.</summary>
+    public HubApiClient(AdminStateService adminState, IServiceScopeFactory scopeFactory, IConfiguration configuration)
     {
         _adminState = adminState;
-        _projetoService = projetoService;
-        _tecnologiaService = tecnologiaService;
-        _postService = postService;
-        _trajetoriaService = trajetoriaService;
-        _perfilService = perfilService;
+        _scopeFactory = scopeFactory;
         _configuration = configuration;
     }
 
-    private void GarantirAdmin()
+    private bool EmProcesso => _scopeFactory is not null;
+
+    private async Task<TResult> UsarServicoAsync<TService, TResult>(Func<TService, Task<TResult>> acao, bool exigeAdmin = false)
+        where TService : notnull
     {
-        if (!_adminState.EstaAutenticado)
+        if (exigeAdmin && !_adminState.EstaAutenticado)
         {
             throw new UnauthorizedAccessException("Operação restrita para administradores autenticados.");
         }
+
+        await using var scope = _scopeFactory!.CreateAsyncScope();
+        var servico = scope.ServiceProvider.GetRequiredService<TService>();
+        return await acao(servico);
     }
 
     private HttpRequestMessage CriarRequisicao(HttpMethod metodo, string url, object? corpo = null)
@@ -74,17 +75,15 @@ public class HubApiClient
     // ==========================================
     public async Task<bool> ValidarLoginAsync(string chave, CancellationToken ct = default)
     {
-        if (_configuration is not null)
+        if (EmProcesso)
         {
-            var chaveEsperada = _configuration["Admin:ChaveAcesso"] ?? "hub-admin-2026";
-            return chave == chaveEsperada;
+            var chaveEsperada = _configuration!["Admin:ChaveAcesso"];
+            return !string.IsNullOrEmpty(chaveEsperada) && chave == chaveEsperada;
         }
-
-        if (_http is null) return false;
 
         try
         {
-            var resposta = await _http.PostAsJsonAsync("/api/auth/login", new { chave }, ct);
+            var resposta = await _http!.PostAsJsonAsync("/api/auth/login", new { chave }, ct);
             return resposta.IsSuccessStatusCode;
         }
         catch
@@ -98,10 +97,8 @@ public class HubApiClient
     // ==========================================
     public async Task<IReadOnlyList<ProjetoResumoDto>> ListarProjetosAsync(bool somenteDestaques = false, CancellationToken ct = default)
     {
-        if (_projetoService is not null)
-        {
-            return await _projetoService.ListarAsync(somenteDestaques, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IProjetoService, IReadOnlyList<ProjetoResumoDto>>(s => s.ListarAsync(somenteDestaques, ct));
 
         var url = $"/api/projetos{(somenteDestaques ? "?somenteDestaques=true" : "")}";
         return await _http!.GetFromJsonAsync<IReadOnlyList<ProjetoResumoDto>>(url, ct) ?? [];
@@ -109,10 +106,8 @@ public class HubApiClient
 
     public async Task<ProjetoDetalheDto?> ObterProjetoPorIdAsync(int id, CancellationToken ct = default)
     {
-        if (_projetoService is not null)
-        {
-            return await _projetoService.ObterPorIdAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IProjetoService, ProjetoDetalheDto?>(s => s.ObterPorIdAsync(id, ct));
 
         var resposta = await _http!.GetAsync($"/api/projetos/id/{id}", ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -123,11 +118,8 @@ public class HubApiClient
 
     public async Task<ProjetoDetalheDto> CriarProjetoAsync(ProjetoInputDto input, CancellationToken ct = default)
     {
-        if (_projetoService is not null)
-        {
-            GarantirAdmin();
-            return await _projetoService.CriarAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IProjetoService, ProjetoDetalheDto>(s => s.CriarAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Post, "/api/projetos", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -138,11 +130,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarProjetoAsync(int id, ProjetoInputDto input, CancellationToken ct = default)
     {
-        if (_projetoService is not null)
-        {
-            GarantirAdmin();
-            return await _projetoService.AtualizarAsync(id, input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IProjetoService, bool>(s => s.AtualizarAsync(id, input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, $"/api/projetos/{id}", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -154,11 +143,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverProjetoAsync(int id, CancellationToken ct = default)
     {
-        if (_projetoService is not null)
-        {
-            GarantirAdmin();
-            return await _projetoService.RemoverAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IProjetoService, bool>(s => s.RemoverAsync(id, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/projetos/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -173,20 +159,16 @@ public class HubApiClient
     // ==========================================
     public async Task<IReadOnlyList<TecnologiaDto>> ListarTecnologiasAsync(CancellationToken ct = default)
     {
-        if (_tecnologiaService is not null)
-        {
-            return await _tecnologiaService.ListarAsync(ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITecnologiaService, IReadOnlyList<TecnologiaDto>>(s => s.ListarAsync(ct));
 
         return await _http!.GetFromJsonAsync<IReadOnlyList<TecnologiaDto>>("/api/tecnologias", ct) ?? [];
     }
 
     public async Task<TecnologiaDto?> ObterTecnologiaPorIdAsync(int id, CancellationToken ct = default)
     {
-        if (_tecnologiaService is not null)
-        {
-            return await _tecnologiaService.ObterPorIdAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITecnologiaService, TecnologiaDto?>(s => s.ObterPorIdAsync(id, ct));
 
         var resposta = await _http!.GetAsync($"/api/tecnologias/{id}", ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -197,11 +179,8 @@ public class HubApiClient
 
     public async Task<TecnologiaDto> CriarTecnologiaAsync(TecnologiaInputDto input, CancellationToken ct = default)
     {
-        if (_tecnologiaService is not null)
-        {
-            GarantirAdmin();
-            return await _tecnologiaService.CriarAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITecnologiaService, TecnologiaDto>(s => s.CriarAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Post, "/api/tecnologias", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -212,11 +191,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarTecnologiaAsync(int id, TecnologiaInputDto input, CancellationToken ct = default)
     {
-        if (_tecnologiaService is not null)
-        {
-            GarantirAdmin();
-            return await _tecnologiaService.AtualizarAsync(id, input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITecnologiaService, bool>(s => s.AtualizarAsync(id, input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, $"/api/tecnologias/{id}", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -228,11 +204,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverTecnologiaAsync(int id, CancellationToken ct = default)
     {
-        if (_tecnologiaService is not null)
-        {
-            GarantirAdmin();
-            return await _tecnologiaService.RemoverAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITecnologiaService, bool>(s => s.RemoverAsync(id, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/tecnologias/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -247,12 +220,9 @@ public class HubApiClient
     // ==========================================
     public async Task<IReadOnlyList<PostResumoDto>> ListarPostsAsync(int? quantidade = null, bool todos = true, CancellationToken ct = default)
     {
-        if (_postService is not null)
-        {
-            return todos
-                ? await _postService.ListarTodosAsync(ct)
-                : await _postService.ListarPublicadosAsync(quantidade, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPostService, IReadOnlyList<PostResumoDto>>(s =>
+                todos ? s.ListarTodosAsync(ct) : s.ListarPublicadosAsync(quantidade, ct));
 
         var url = $"/api/posts?todos={todos}{(quantidade.HasValue ? $"&quantidade={quantidade.Value}" : "")}";
         return await _http!.GetFromJsonAsync<IReadOnlyList<PostResumoDto>>(url, ct) ?? [];
@@ -260,10 +230,8 @@ public class HubApiClient
 
     public async Task<PostDto?> ObterPostPorIdAsync(int id, CancellationToken ct = default)
     {
-        if (_postService is not null)
-        {
-            return await _postService.ObterPorIdAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPostService, PostDto?>(s => s.ObterPorIdAsync(id, ct));
 
         var resposta = await _http!.GetAsync($"/api/posts/id/{id}", ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -274,11 +242,8 @@ public class HubApiClient
 
     public async Task<PostDto> CriarPostAsync(PostInputDto input, CancellationToken ct = default)
     {
-        if (_postService is not null)
-        {
-            GarantirAdmin();
-            return await _postService.CriarAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPostService, PostDto>(s => s.CriarAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Post, "/api/posts", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -289,11 +254,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarPostAsync(int id, PostInputDto input, CancellationToken ct = default)
     {
-        if (_postService is not null)
-        {
-            GarantirAdmin();
-            return await _postService.AtualizarAsync(id, input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPostService, bool>(s => s.AtualizarAsync(id, input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, $"/api/posts/{id}", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -305,11 +267,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverPostAsync(int id, CancellationToken ct = default)
     {
-        if (_postService is not null)
-        {
-            GarantirAdmin();
-            return await _postService.RemoverAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPostService, bool>(s => s.RemoverAsync(id, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/posts/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -324,20 +283,16 @@ public class HubApiClient
     // ==========================================
     public async Task<IReadOnlyList<ExperienciaDto>> ListarExperienciasAsync(CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            return await _trajetoriaService.ListarExperienciasAsync(ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, IReadOnlyList<ExperienciaDto>>(s => s.ListarExperienciasAsync(ct));
 
         return await _http!.GetFromJsonAsync<IReadOnlyList<ExperienciaDto>>("/api/trajetoria/experiencias", ct) ?? [];
     }
 
     public async Task<ExperienciaDto?> ObterExperienciaPorIdAsync(int id, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            return await _trajetoriaService.ObterExperienciaPorIdAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, ExperienciaDto?>(s => s.ObterExperienciaPorIdAsync(id, ct));
 
         var resposta = await _http!.GetAsync($"/api/trajetoria/experiencias/{id}", ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -347,11 +302,8 @@ public class HubApiClient
 
     public async Task<ExperienciaDto> CriarExperienciaAsync(ExperienciaInputDto input, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.CriarExperienciaAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, ExperienciaDto>(s => s.CriarExperienciaAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Post, "/api/trajetoria/experiencias", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -362,11 +314,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarExperienciaAsync(int id, ExperienciaInputDto input, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.AtualizarExperienciaAsync(id, input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, bool>(s => s.AtualizarExperienciaAsync(id, input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, $"/api/trajetoria/experiencias/{id}", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -377,11 +326,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverExperienciaAsync(int id, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.RemoverExperienciaAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, bool>(s => s.RemoverExperienciaAsync(id, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/trajetoria/experiencias/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -395,20 +341,16 @@ public class HubApiClient
     // ==========================================
     public async Task<IReadOnlyList<FormacaoDto>> ListarFormacoesAsync(CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            return await _trajetoriaService.ListarFormacoesAsync(ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, IReadOnlyList<FormacaoDto>>(s => s.ListarFormacoesAsync(ct));
 
         return await _http!.GetFromJsonAsync<IReadOnlyList<FormacaoDto>>("/api/trajetoria/formacoes", ct) ?? [];
     }
 
     public async Task<FormacaoDto?> ObterFormacaoPorIdAsync(int id, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            return await _trajetoriaService.ObterFormacaoPorIdAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, FormacaoDto?>(s => s.ObterFormacaoPorIdAsync(id, ct));
 
         var resposta = await _http!.GetAsync($"/api/trajetoria/formacoes/{id}", ct);
         if (resposta.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
@@ -418,11 +360,8 @@ public class HubApiClient
 
     public async Task<FormacaoDto> CriarFormacaoAsync(FormacaoInputDto input, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.CriarFormacaoAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, FormacaoDto>(s => s.CriarFormacaoAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Post, "/api/trajetoria/formacoes", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -433,11 +372,8 @@ public class HubApiClient
 
     public async Task<bool> AtualizarFormacaoAsync(int id, FormacaoInputDto input, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.AtualizarFormacaoAsync(id, input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, bool>(s => s.AtualizarFormacaoAsync(id, input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, $"/api/trajetoria/formacoes/{id}", input);
         using var resposta = await _http!.SendAsync(req, ct);
@@ -448,11 +384,8 @@ public class HubApiClient
 
     public async Task<bool> RemoverFormacaoAsync(int id, CancellationToken ct = default)
     {
-        if (_trajetoriaService is not null)
-        {
-            GarantirAdmin();
-            return await _trajetoriaService.RemoverFormacaoAsync(id, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<ITrajetoriaService, bool>(s => s.RemoverFormacaoAsync(id, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/trajetoria/formacoes/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -466,21 +399,16 @@ public class HubApiClient
     // ==========================================
     public async Task<PerfilDto?> ObterPerfilAsync(CancellationToken ct = default)
     {
-        if (_perfilService is not null)
-        {
-            return await _perfilService.ObterAsync(ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPerfilService, PerfilDto?>(async s => await s.ObterAsync(ct));
 
         return await _http!.GetFromJsonAsync<PerfilDto>("/api/perfil", ct);
     }
 
     public async Task<PerfilDto> AtualizarPerfilAsync(PerfilInputDto input, CancellationToken ct = default)
     {
-        if (_perfilService is not null)
-        {
-            GarantirAdmin();
-            return await _perfilService.AtualizarAsync(input, ct);
-        }
+        if (EmProcesso)
+            return await UsarServicoAsync<IPerfilService, PerfilDto>(s => s.AtualizarAsync(input, ct), exigeAdmin: true);
 
         using var req = CriarRequisicao(HttpMethod.Put, "/api/perfil", input);
         using var resposta = await _http!.SendAsync(req, ct);

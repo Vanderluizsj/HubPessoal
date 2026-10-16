@@ -1,0 +1,88 @@
+name: Deploy Hub Pessoal para MonsterASP.NET
+
+on:
+  push:
+    branches:
+      - main
+      - V2
+  workflow_dispatch: # Permite disparar o deploy manualmente pela aba Actions do GitHub
+
+jobs:
+  build_test_and_deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: 1. Checkout do código
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 3. Restaurar dependências
+        run: dotnet restore
+
+      - name: 4. Compilar solução (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: 5. Executar testes automatizados (xUnit)
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+      - name: 6. Publicar Host Unificado (MVC + Blazor + API)
+        run: dotnet publish src/Vanderluiz.Hub.Mvc/Vanderluiz.Hub.Mvc.csproj --configuration Release --output ./publish --runtime win-x86 --no-self-contained
+
+      - name: 7. Gerar appsettings.json dinamicamente com Secrets
+        shell: pwsh
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+        run: |
+          $config = @{
+            Logging = @{
+              LogLevel = @{
+                Default = "Information"
+                "Microsoft.AspNetCore" = "Warning"
+                "Microsoft.EntityFrameworkCore.Database.Command" = "Warning"
+              }
+            }
+            AllowedHosts = "*"
+            ConnectionStrings = @{
+              HubDb = $env:DB_CONNECTION_STRING
+            }
+            Database = @{
+              InicializarAoIniciar = $true
+            }
+            Admin = @{
+              ChaveAcesso = $env:ADMIN_KEY
+            }
+            Api = @{
+              UsarApi = $false
+              BaseUrl = "http://localhost"
+            }
+            Perfil = @{
+              Nome = "Vanderluiz"
+              Titulo = "Desenvolvedor .NET"
+              Bio = "Desenvolvedor focado em ASP.NET Core, SQL Server e arquitetura de software."
+              Localizacao = "Brasil"
+              Email = "contato@vanderluiz.com"
+              GitHub = "https://github.com/Vanderluizsj"
+              LinkedIn = "https://www.linkedin.com/in/vanderluiz"
+              FotoUrl = ""
+            }
+          }
+
+          $json = $config | ConvertTo-Json -Depth 5
+          Set-Content -Path "./publish/appsettings.json" -Value $json -Encoding UTF8
+          Set-Content -Path "./publish/appsettings.Production.json" -Value $json -Encoding UTF8
+          Write-Host "Arquivos appsettings.json e appsettings.Production.json gerados com sucesso para o deploy."
+
+      - name: 8. Deploy para MonsterASP.NET via WebDeploy
+        uses: rasmusbuchholdt/simply-web-deploy@2.2.0
+        with:
+          website-name: ${{ secrets.WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.SERVER_USERNAME }}
+          server-password: ${{ secrets.SERVER_PASSWORD }}
+          source-path: '\publish\'
+

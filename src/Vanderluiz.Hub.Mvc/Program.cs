@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Scalar.AspNetCore;
 using Vanderluiz.Hub.Api.Controllers;
@@ -13,6 +14,14 @@ using Vanderluiz.Hub.Mvc.Services;
 using Vanderluiz.Hub.Mvc.Services.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Suporte a Proxy Reverso (Cloudflare Flexible SSL -> MonsterASP HTTP)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // =============================================================================
 // 1. SERVIÇOS WEB: MVC + Web API + Blazor Interactive Server
@@ -31,7 +40,10 @@ builder.Services.AddRazorComponents()
 
 // Serviços de autenticação e dados do Blazor
 builder.Services.AddScoped<AdminStateService>();
-builder.Services.AddScoped<HubApiClient>();
+builder.Services.AddScoped(sp => new HubApiClient(
+    sp.GetRequiredService<AdminStateService>(),
+    sp.GetRequiredService<IServiceScopeFactory>(),
+    sp.GetRequiredService<IConfiguration>()));
 
 // Configurações e Provedores do Perfil
 builder.Services.Configure<PerfilOptions>(builder.Configuration.GetSection(PerfilOptions.Secao));
@@ -73,24 +85,27 @@ else
 var app = builder.Build();
 
 // =============================================================================
-// 3. INICIALIZAÇÃO DE BANCO DE DADOS (Migrations + Seed)
+// 3. INICIALIZAÇÃO AUTOMÁTICA DO BANCO DE DADOS (Migrations SQL Server + Seed)
 // =============================================================================
-if (!usarApi && app.Configuration.GetValue("Database:InicializarAoIniciar", app.Environment.IsDevelopment()))
+if (!usarApi && app.Configuration.GetValue("Database:InicializarAoIniciar", true))
 {
     using var scope = app.Services.CreateScope();
     try
     {
-        await scope.ServiceProvider.GetRequiredService<DbInitializer>().InicializarAsync();
+        var initializer = scope.ServiceProvider.GetRequiredService<DbInitializer>();
+        await initializer.InicializarAsync();
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Falha ao inicializar o banco de dados. Verifique a connection string 'HubDb'.");
+        app.Logger.LogError(ex, "Falha ao inicializar/migrar o banco de dados. Verifique a connection string 'HubDb'.");
     }
 }
 
 // =============================================================================
 // 4. PIPELINE HTTP
 // =============================================================================
+app.UseForwardedHeaders();
+
 var ptBr = new CultureInfo("pt-BR");
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
@@ -107,7 +122,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/erro/{0}");
 
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseRouting();
 
 app.UseAuthorization();
