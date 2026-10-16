@@ -1,4 +1,3 @@
-@page "/"
 @page "/admin"
 @inject HubApiClient Api
 @inject NavigationManager Nav
@@ -10,7 +9,7 @@
         <h1 class="h3 fw-bold mb-1">Painel Administrativo</h1>
         <p class="texto-suave mb-0">Visão geral do Hub Pessoal e status das entidades cadastradas.</p>
     </div>
-    <a href="projetos" class="btn btn-hub"><i class="bi bi-plus-lg me-1"></i> Gerenciar Projetos</a>
+    <a href="admin/projetos" class="btn btn-hub"><i class="bi bi-plus-lg me-1"></i> Gerenciar Projetos</a>
 </div>
 
 @if (carregando)
@@ -72,7 +71,7 @@ else
         </div>
 
         <div class="col-sm-6 col-xl-3">
-            <a href="trajetoria" class="text-decoration-none">
+            <a href="admin/trajetoria" class="text-decoration-none">
                 <div class="hub-card stat-card">
                     <div class="stat-icon" style="background: rgba(250, 204, 21, 0.15); color: #facc15;">
                         <i class="bi bi-briefcase"></i>
@@ -90,7 +89,7 @@ else
     <div class="hub-card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="h5 fw-bold mb-0">Projetos Recentes</h2>
-            <a href="projetos" class="small text-decoration-none">Ver todos <i class="bi bi-arrow-right"></i></a>
+            <a href="admin/projetos" class="small text-decoration-none">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
 
         <div class="table-responsive">

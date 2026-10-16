@@ -3,9 +3,15 @@
   <ItemGroup>
     <ProjectReference Include="..\Vanderluiz.Hub.Application\Vanderluiz.Hub.Application.csproj" />
     <ProjectReference Include="..\Vanderluiz.Hub.Infrastructure\Vanderluiz.Hub.Infrastructure.csproj" />
+    <ProjectReference Include="..\Vanderluiz.Hub.Api\Vanderluiz.Hub.Api.csproj" />
+    <ProjectReference Include="..\Vanderluiz.Hub.Blazor\Vanderluiz.Hub.Blazor.csproj">
+      <Properties>StaticWebAssetBasePath=_content/Vanderluiz.Hub.Blazor</Properties>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.18.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

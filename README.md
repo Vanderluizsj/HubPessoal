@@ -62,4 +62,5 @@ Esse script inicializa automaticamente:
 - [x] **Etapa 1:** Estrutura inicial (Domain, Application, Infrastructure, SQL Server e MVC)
 - [x] **Etapa 2:** Criação da Web API RESTful com OpenAPI + Scalar e desacoplamento do MVC via HTTP
 - [x] **Etapa 3:** Criação do painel administrativo com **Blazor** (`Vanderluiz.Hub.Blazor`) com Dashboard e CRUD completo de Projetos, Tecnologias, Posts, Trajetória e Perfil/Contato
-- [ ] **Etapa 4:** Recursos avançados (Autenticação JWT / Cookie Identity no admin, suporte a Markdown nos posts, deploy em cloud)
+- [x] **Etapa 4:** Testes automatizados (Unitários com **xUnit**, **Moq** e **FluentAssertions** cobrindo Services, Helpers, Controllers e Filtros de Segurança)
+- [ ] **Etapa 5:** Recursos avançados (Deploy em cloud, CI/CD GitHub Actions, suporte a Markdown nos posts)

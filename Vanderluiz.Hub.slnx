@@ -7,4 +7,7 @@
     <Project Path="src/Vanderluiz.Hub.Infrastructure/Vanderluiz.Hub.Infrastructure.csproj" />
     <Project Path="src/Vanderluiz.Hub.Mvc/Vanderluiz.Hub.Mvc.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vanderluiz.Hub.Tests/Vanderluiz.Hub.Tests.csproj" />
+  </Folder>
 </Solution>
