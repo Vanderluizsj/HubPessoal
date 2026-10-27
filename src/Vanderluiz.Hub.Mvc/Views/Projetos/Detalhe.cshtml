@@ -27,15 +27,20 @@
         </div>
     </header>
 
-    @if (!string.IsNullOrWhiteSpace(Model.ImagemUrl))
-    {
-        <img src="@Model.ImagemUrl" alt="@Model.Titulo" class="img-fluid rounded-4 mb-5 projeto-capa" />
-    }
-
     <div class="row g-5">
         <div class="col-lg-8">
             <h2 class="h4 mb-3">Sobre o projeto</h2>
             <div class="texto-pre texto-suave">@Model.Descricao</div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ImagemUrl))
+            {
+                <div class="mt-4">
+                    <img src="@Model.ImagemUrl"
+                         alt="Prévia de @Model.Titulo"
+                         class="img-fluid rounded-4 w-100 projeto-capa"
+                         style="border: 1px solid var(--hub-border); box-shadow: 0 20px 40px -15px rgba(0, 0, 0, .5);" />
+                </div>
+            }
         </div>
         <aside class="col-lg-4">
             <div class="hub-card p-4">
@@ -50,4 +55,3 @@
         </aside>
     </div>
 </article>
-
