@@ -38,6 +38,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Aumenta o limite de mensagens SignalR (20 MB) para suportar upload de GIFs de até 10 MB em Base64 no painel admin
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 20 * 1024 * 1024;
+});
+
 // Serviços de autenticação e dados do Blazor
 builder.Services.AddScoped<AdminStateService>();
 builder.Services.AddScoped(sp => new HubApiClient(

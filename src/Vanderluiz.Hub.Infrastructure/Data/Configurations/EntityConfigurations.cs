@@ -16,7 +16,7 @@ public class ProjetoConfiguration : IEntityTypeConfiguration<Projeto>
         b.Property(p => p.Descricao).IsRequired();
         b.Property(p => p.UrlRepositorio).HasMaxLength(300);
         b.Property(p => p.UrlDemo).HasMaxLength(300);
-        b.Property(p => p.ImagemUrl).HasMaxLength(300);
+        b.Property(p => p.ImagemUrl); // nvarchar(max) para suportar upload de GIF/Imagem em Base64 ou URL
         b.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
 
         b.HasMany(p => p.Tecnologias)
@@ -88,8 +88,7 @@ public class PerfilConfigConfiguration : IEntityTypeConfiguration<PerfilConfig>
         b.Property(p => p.Email).HasMaxLength(150);
         b.Property(p => p.GitHub).HasMaxLength(250);
         b.Property(p => p.LinkedIn).HasMaxLength(250);
-        b.Property(p => p.FotoUrl).HasMaxLength(300);
+        b.Property(p => p.FotoUrl); // nvarchar(max) para suportar upload de Foto em Base64 ou URL
         b.Property(p => p.Telefone).HasMaxLength(50);
     }
 }
-

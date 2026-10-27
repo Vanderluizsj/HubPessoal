@@ -1,6 +1,7 @@
 @page "/admin/perfil"
 @inject HubApiClient Api
 @inject AdminStateService AdminState
+@using Microsoft.AspNetCore.Components.Forms
 @using Vanderluiz.Hub.Blazor.Components.Shared
 
 <PageTitle>Perfil & Contato · Hub Admin</PageTitle>
@@ -8,7 +9,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h3 fw-bold mb-1">Perfil e Informações de Contato</h1>
-        <p class="texto-suave mb-0">Gerencie seus canais de contato, links sociais e dados biográficos exibidos no portfólio.</p>
+        <p class="texto-suave mb-0">Gerencie seus canais de contato, links sociais, foto e dados biográficos exibidos no portfólio.</p>
     </div>
 </div>
 
@@ -17,7 +18,7 @@
     <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
         <div>
             <i class="bi bi-info-circle me-1"></i>
-            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para atualizar seus dados biográficos e canais de contato, ative o acesso de Administrador.
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para atualizar seus dados biográficos e fazer upload da sua foto, ative o acesso de Administrador.
         </div>
         <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
     </div>
@@ -102,17 +103,60 @@ else
                         </div>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label small text-white-50">URL da Foto de Perfil</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="bi bi-image"></i></span>
-                            <input type="url" class="form-control" @bind="input.FotoUrl" placeholder="https://exemplo.com/sua-foto.jpg" />
+                    <!-- UPLOAD DE FOTO DE PERFIL -->
+                    <div class="col-12 mt-3">
+                        <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px dashed var(--hub-border);">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <label class="form-label small text-white fw-semibold mb-0">
+                                    <i class="bi bi-camera text-info me-1"></i> Foto de Perfil (Upload ou URL)
+                                </label>
+                                @if (!string.IsNullOrWhiteSpace(input.FotoUrl))
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" @onclick="RemoverFoto">
+                                        <i class="bi bi-trash me-1"></i>Remover foto
+                                    </button>
+                                }
+                            </div>
+
+                            <div class="row g-2 align-items-center">
+                                <div class="col-md-7">
+                                    <InputFile OnChange="CarregarFotoUploadAsync"
+                                               accept=".jpg,.jpeg,.png,.webp,.gif"
+                                               class="form-control form-control-sm"
+                                               disabled="@(!AdminState.EstaAutenticado || lendoArquivo)" />
+                                    <small class="texto-suave d-block mt-1" style="font-size: 0.75rem;">
+                                         Formatos aceitos: JPG, PNG, WEBP ou GIF (máx. 2 MB). Requer login Admin.
+                                    </small>
+                                </div>
+                                <div class="col-md-5">
+                                    @if (EhBase64(input.FotoUrl))
+                                    {
+                                        <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Imagem carregada via Upload
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-dark border-secondary text-white-50"><i class="bi bi-link-45deg"></i></span>
+                                            <input type="url" class="form-control" @bind="input.FotoUrl" placeholder="Ou cole uma URL https://..." />
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (lendoArquivo)
+                            {
+                                <div class="mt-2 small text-info d-flex align-items-center gap-2">
+                                    <span class="spinner-border spinner-border-sm"></span> Processando imagem...
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-4 pt-3 border-top border-secondary d-flex justify-content-end">
-                    <button class="btn btn-hub px-4" disabled="@salvando" @onclick="SalvarPerfil">
+                    <button class="btn btn-hub px-4" disabled="@(salvando || lendoArquivo)" @onclick="SalvarPerfil">
                         @if (salvando) { <span class="spinner-border spinner-border-sm me-1"></span> }
                         <i class="bi bi-check-lg me-1"></i> Salvar Perfil & Contato
                     </button>
@@ -128,11 +172,11 @@ else
                 <div class="text-center p-3 mb-3 border border-secondary rounded-3 bg-black bg-opacity-25">
                     @if (!string.IsNullOrWhiteSpace(input.FotoUrl))
                     {
-                        <img src="@input.FotoUrl" class="rounded-circle mb-2" style="width: 80px; height: 80px; object-fit: cover;" alt="Foto" />
+                        <img src="@input.FotoUrl" class="rounded-circle mb-2 border border-info" style="width: 96px; height: 96px; object-fit: cover;" alt="Foto" />
                     }
                     else
                     {
-                        <div class="rounded-circle bg-secondary bg-opacity-25 d-inline-flex align-items-center justify-content-center mb-2" style="width: 80px; height: 80px;">
+                        <div class="rounded-circle bg-secondary bg-opacity-25 d-inline-flex align-items-center justify-content-center mb-2" style="width: 96px; height: 96px;">
                             <i class="bi bi-person text-info fs-1"></i>
                         </div>
                     }
@@ -170,8 +214,11 @@ else
 <AdminLoginModal @bind-Exibir="exibirLoginModal" />
 
 @code {
+    private const long TamanhoMaximoFotoBytes = 2 * 1024 * 1024; // 2 MB
+
     private bool carregando = true;
     private bool salvando = false;
+    private bool lendoArquivo = false;
     private string? mensagemAlerta;
     private string tipoAlerta = "success";
     private bool exibirLoginModal = false;
@@ -181,6 +228,55 @@ else
     protected override async Task OnInitializedAsync()
     {
         await CarregarPerfilAsync();
+    }
+
+    private static bool EhBase64(string? valor) =>
+        !string.IsNullOrWhiteSpace(valor) && valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+
+    private void RemoverFoto()
+    {
+        input.FotoUrl = string.Empty;
+    }
+
+    private async Task CarregarFotoUploadAsync(InputFileChangeEventArgs e)
+    {
+        if (!AdminState.EstaAutenticado)
+        {
+            exibirLoginModal = true;
+            return;
+        }
+
+        var arquivo = e.File;
+        if (arquivo is null) return;
+
+        if (arquivo.Size > TamanhoMaximoFotoBytes)
+        {
+            ExibirAlerta("A imagem selecionada excede o limite de 2 MB. Escolha uma imagem menor.", "warning");
+            return;
+        }
+
+        try
+        {
+            lendoArquivo = true;
+            mensagemAlerta = null;
+
+            var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/jpeg" : arquivo.ContentType;
+            await using var stream = arquivo.OpenReadStream(TamanhoMaximoFotoBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            input.FotoUrl = $"data:{contentType};base64,{base64}";
+            ExibirAlerta($"Foto '{arquivo.Name}' carregada! Clique em 'Salvar Perfil & Contato' para gravar.", "info");
+        }
+        catch (Exception ex)
+        {
+            ExibirAlerta($"Erro ao processar a imagem: {ex.Message}", "danger");
+        }
+        finally
+        {
+            lendoArquivo = false;
+        }
     }
 
     private async Task CarregarPerfilAsync()
@@ -251,4 +347,3 @@ else
         tipoAlerta = tipo;
     }
 }
-

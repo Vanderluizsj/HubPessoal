@@ -1,6 +1,7 @@
 @page "/admin/projetos"
 @inject HubApiClient Api
 @inject AdminStateService AdminState
+@using Microsoft.AspNetCore.Components.Forms
 @using Vanderluiz.Hub.Blazor.Components.Shared
 
 <PageTitle>Gerenciar Projetos · Hub Admin</PageTitle>
@@ -8,7 +9,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
         <h1 class="h3 fw-bold mb-1">Gerenciador de Projetos</h1>
-        <p class="texto-suave mb-0">Cadastre, edite ou remova projetos exibidos no portfólio.</p>
+        <p class="texto-suave mb-0">Cadastre, edite ou remova projetos e suas prévias em GIF/imagem exibidos no portfólio.</p>
     </div>
     <button class="btn btn-hub" @onclick="TentarCriarProjeto">
         <i class="bi bi-plus-lg me-1"></i> Novo Projeto
@@ -70,9 +71,10 @@ else
     {
         <div class="hub-card">
             <div class="table-responsive">
-                <table class="table table-hub">
+                <table class="table table-hub align-middle">
                     <thead>
                         <tr>
+                            <th style="width: 72px;">Prévia</th>
                             <th>Título</th>
                             <th>Status</th>
                             <th>Destaque</th>
@@ -84,6 +86,21 @@ else
                         @foreach (var p in filtrados)
                         {
                             <tr>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(p.ImagemUrl))
+                                    {
+                                        <img src="@p.ImagemUrl" alt="@p.Titulo"
+                                             class="rounded border border-secondary"
+                                             style="width: 56px; height: 36px; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-white-50"
+                                             style="width: 56px; height: 36px;">
+                                            <i class="bi bi-code-slash"></i>
+                                        </div>
+                                    }
+                                </td>
                                 <td>
                                     <div class="fw-semibold">@p.Titulo</div>
                                     <small class="texto-suave">/@p.Slug</small>
@@ -170,6 +187,80 @@ else
                                 <InputText class="form-control" @bind-Value="inputModel.UrlDemo" placeholder="https://..." />
                             </div>
 
+                            <!-- UPLOAD DE PRÉVIA (GIF / IMAGEM) -->
+                            <div class="col-12">
+                                <div class="p-3 rounded-3" style="background: var(--hub-bg); border: 1px dashed var(--hub-border);">
+                                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                        <label class="form-label fw-semibold mb-0">
+                                            <i class="bi bi-film text-info me-1"></i> Prévia do Projeto (GIF animado ou Imagem)
+                                        </label>
+                                        @if (!string.IsNullOrWhiteSpace(inputModel.ImagemUrl))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" @onclick="RemoverMidiaProjeto">
+                                                <i class="bi bi-trash me-1"></i>Remover prévia
+                                            </button>
+                                        }
+                                    </div>
+
+                                    <div class="row g-3 align-items-center">
+                                        <div class="col-md-7">
+                                            <InputFile OnChange="CarregarMidiaProjetoAsync"
+                                                       accept=".gif,.webp,.png,.jpg,.jpeg"
+                                                       class="form-control form-control-sm mb-2"
+                                                       disabled="@lendoMidia" />
+
+                                            @if (EhBase64(inputModel.ImagemUrl))
+                                            {
+                                                <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> GIF / Imagem carregado via Upload
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text bg-dark border-secondary text-white-50"><i class="bi bi-link-45deg"></i></span>
+                                                    <input type="url" class="form-control" @bind="inputModel.ImagemUrl" placeholder="Ou cole a URL de um GIF/imagem https://..." />
+                                                </div>
+                                            }
+
+                                            <small class="texto-suave d-block mt-1" style="font-size: 0.75rem;">
+                                                Envie um <strong>.gif</strong> (prévia animada), <strong>.webp</strong>, <strong>.png</strong> ou <strong>.jpg</strong> (máx. 10 MB).
+                                            </small>
+
+                                            @if (lendoMidia)
+                                            {
+                                                <div class="mt-2 small text-info d-flex align-items-center gap-2">
+                                                    <span class="spinner-border spinner-border-sm"></span> Carregando GIF / imagem...
+                                                </div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(erroMidia))
+                                            {
+                                                <div class="mt-2 small text-warning">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>@erroMidia
+                                                </div>
+                                            }
+                                        </div>
+
+                                        <div class="col-md-5 text-center">
+                                            @if (!string.IsNullOrWhiteSpace(inputModel.ImagemUrl))
+                                            {
+                                                <img src="@inputModel.ImagemUrl" alt="Prévia do projeto"
+                                                     class="img-fluid rounded-3 border border-info"
+                                                     style="max-height: 130px; object-fit: cover;" />
+                                            }
+                                            else
+                                            {
+                                                <div class="rounded-3 bg-secondary bg-opacity-10 border border-secondary d-flex flex-column align-items-center justify-content-center p-3 texto-suave"
+                                                     style="height: 110px;">
+                                                    <i class="bi bi-code-slash fs-3 mb-1"></i>
+                                                    <small>Sem prévia (ícone padrão)</small>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-md-4">
                                 <label class="form-label">Status</label>
                                 <InputSelect class="form-select" @bind-Value="inputModel.Status">
@@ -212,7 +303,7 @@ else
 
                         <div class="modal-footer px-0 pb-0 mt-4">
                             <button type="button" class="btn btn-hub-outline" @onclick="FecharModal">Cancelar</button>
-                            <button type="submit" class="btn btn-hub" disabled="@salvando">
+                            <button type="submit" class="btn btn-hub" disabled="@(salvando || lendoMidia)">
                                 @if (salvando)
                                 {
                                     <span class="spinner-border spinner-border-sm me-1"></span>
@@ -252,8 +343,12 @@ else
 <AdminLoginModal @bind-Exibir="exibirLoginModal" />
 
 @code {
+    private const long TamanhoMaximoMidiaBytes = 10 * 1024 * 1024; // 10 MB para suportar GIFs animados
+
     private bool carregando = true;
     private bool salvando = false;
+    private bool lendoMidia = false;
+    private string? erroMidia;
     private bool exibirModal = false;
     private bool exibirLoginModal = false;
     private string termoBusca = string.Empty;
@@ -271,6 +366,48 @@ else
     protected override async Task OnInitializedAsync()
     {
         await CarregarDadosAsync();
+    }
+
+    private static bool EhBase64(string? valor) =>
+        !string.IsNullOrWhiteSpace(valor) && valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+
+    private void RemoverMidiaProjeto()
+    {
+        inputModel.ImagemUrl = null;
+        erroMidia = null;
+    }
+
+    private async Task CarregarMidiaProjetoAsync(InputFileChangeEventArgs e)
+    {
+        var arquivo = e.File;
+        if (arquivo is null) return;
+
+        erroMidia = null;
+        if (arquivo.Size > TamanhoMaximoMidiaBytes)
+        {
+            erroMidia = "O arquivo excede o limite de 10 MB. Tente otimizar o GIF ou usar um arquivo menor.";
+            return;
+        }
+
+        try
+        {
+            lendoMidia = true;
+            var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/gif" : arquivo.ContentType;
+            await using var stream = arquivo.OpenReadStream(TamanhoMaximoMidiaBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            inputModel.ImagemUrl = $"data:{contentType};base64,{base64}";
+        }
+        catch (Exception ex)
+        {
+            erroMidia = $"Falha ao ler o arquivo: {ex.Message}";
+        }
+        finally
+        {
+            lendoMidia = false;
+        }
     }
 
     private async Task CarregarDadosAsync()
@@ -305,6 +442,7 @@ else
             return;
         }
 
+        erroMidia = null;
         projetoEdicaoId = null;
         inputModel = new ProjetoInputDto
         {
@@ -329,6 +467,7 @@ else
             var detalhe = await Api.ObterProjetoPorIdAsync(id);
             if (detalhe is null) return;
 
+            erroMidia = null;
             projetoEdicaoId = id;
             inputModel = new ProjetoInputDto
             {
