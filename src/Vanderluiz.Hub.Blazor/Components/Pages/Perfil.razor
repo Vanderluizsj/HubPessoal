@@ -1,6 +1,7 @@
 @page "/admin/perfil"
 @inject HubApiClient Api
 @inject AdminStateService AdminState
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Forms
 @using Vanderluiz.Hub.Blazor.Components.Shared
 
@@ -108,7 +109,7 @@ else
                         <div class="p-3 rounded-3" style="background: rgba(255,255,255,0.03); border: 1px dashed var(--hub-border);">
                             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                                 <label class="form-label small text-white fw-semibold mb-0">
-                                    <i class="bi bi-camera text-info me-1"></i> Foto de Perfil (Upload ou URL)
+                                    <i class="bi bi-camera text-info me-1"></i> Foto de Perfil (Upload em wwwroot ou URL)
                                 </label>
                                 @if (!string.IsNullOrWhiteSpace(input.FotoUrl))
                                 {
@@ -125,14 +126,14 @@ else
                                                class="form-control form-control-sm"
                                                disabled="@(!AdminState.EstaAutenticado || lendoArquivo)" />
                                     <small class="texto-suave d-block mt-1" style="font-size: 0.75rem;">
-                                         Formatos aceitos: JPG, PNG, WEBP ou GIF (máx. 2 MB). Requer login Admin.
+                                         Formatos aceitos: JPG, PNG, WEBP ou GIF (máx. 5 MB). Salvo em <code>/uploads/perfil/</code>.
                                     </small>
                                 </div>
                                 <div class="col-md-5">
-                                    @if (EhBase64(input.FotoUrl))
+                                    @if (EhUploadLocalOuBase64(input.FotoUrl))
                                     {
-                                        <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate">
-                                            <i class="bi bi-check-circle-fill me-1"></i> Imagem carregada via Upload
+                                        <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate" title="@input.FotoUrl">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Imagem salva no servidor
                                         </div>
                                     }
                                     else
@@ -148,7 +149,7 @@ else
                             @if (lendoArquivo)
                             {
                                 <div class="mt-2 small text-info d-flex align-items-center gap-2">
-                                    <span class="spinner-border spinner-border-sm"></span> Processando imagem...
+                                    <span class="spinner-border spinner-border-sm"></span> Salvando imagem no servidor...
                                 </div>
                             }
                         </div>
@@ -214,7 +215,7 @@ else
 <AdminLoginModal @bind-Exibir="exibirLoginModal" />
 
 @code {
-    private const long TamanhoMaximoFotoBytes = 2 * 1024 * 1024; // 2 MB
+    private const long TamanhoMaximoFotoBytes = 5 * 1024 * 1024; // 5 MB
 
     private bool carregando = true;
     private bool salvando = false;
@@ -227,14 +228,25 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        AdminState.OnChange += HandleAdminStateChanged;
         await CarregarPerfilAsync();
     }
 
-    private static bool EhBase64(string? valor) =>
-        !string.IsNullOrWhiteSpace(valor) && valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+    private void HandleAdminStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        AdminState.OnChange -= HandleAdminStateChanged;
+    }
+
+    private static bool EhUploadLocalOuBase64(string? valor) =>
+        !string.IsNullOrWhiteSpace(valor) &&
+        (valor.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+         valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase));
 
     private void RemoverFoto()
     {
+        Api.RemoverArquivoLocalSeExistir(input.FotoUrl);
         input.FotoUrl = string.Empty;
     }
 
@@ -251,7 +263,7 @@ else
 
         if (arquivo.Size > TamanhoMaximoFotoBytes)
         {
-            ExibirAlerta("A imagem selecionada excede o limite de 2 MB. Escolha uma imagem menor.", "warning");
+            ExibirAlerta("A imagem selecionada excede o limite de 5 MB. Escolha uma imagem menor.", "warning");
             return;
         }
 
@@ -260,18 +272,15 @@ else
             lendoArquivo = true;
             mensagemAlerta = null;
 
-            var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/jpeg" : arquivo.ContentType;
             await using var stream = arquivo.OpenReadStream(TamanhoMaximoFotoBytes);
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
+            input.FotoUrl = await Api.SalvarUploadMidiaAsync(stream, arquivo.Name, "perfil", input.FotoUrl);
+            await Api.AtualizarPerfilAsync(input);
 
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            input.FotoUrl = $"data:{contentType};base64,{base64}";
-            ExibirAlerta($"Foto '{arquivo.Name}' carregada! Clique em 'Salvar Perfil & Contato' para gravar.", "info");
+            ExibirAlerta($"Foto '{arquivo.Name}' enviada e salva com sucesso!", "success");
         }
         catch (Exception ex)
         {
-            ExibirAlerta($"Erro ao processar a imagem: {ex.Message}", "danger");
+            ExibirAlerta($"Erro ao salvar a imagem: {ex.Message}", "danger");
         }
         finally
         {

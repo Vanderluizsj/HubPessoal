@@ -22,6 +22,7 @@ public class HubApiClient
     private readonly AdminStateService _adminState;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly IConfiguration? _configuration;
+    private readonly string? _webRootPath;
 
     /// <summary>Modo HTTP: consome a Vanderluiz.Hub.Api remota.</summary>
     [ActivatorUtilitiesConstructor]
@@ -32,11 +33,16 @@ public class HubApiClient
     }
 
     /// <summary>Modo in-process: usa diretamente os serviços da camada Application.</summary>
-    public HubApiClient(AdminStateService adminState, IServiceScopeFactory scopeFactory, IConfiguration configuration)
+    public HubApiClient(
+        AdminStateService adminState,
+        IServiceScopeFactory scopeFactory,
+        IConfiguration configuration,
+        string? webRootPath = null)
     {
         _adminState = adminState;
         _scopeFactory = scopeFactory;
         _configuration = configuration;
+        _webRootPath = webRootPath;
     }
 
     private bool EmProcesso => _scopeFactory is not null;
@@ -144,7 +150,15 @@ public class HubApiClient
     public async Task<bool> RemoverProjetoAsync(int id, CancellationToken ct = default)
     {
         if (EmProcesso)
-            return await UsarServicoAsync<IProjetoService, bool>(s => s.RemoverAsync(id, ct), exigeAdmin: true);
+        {
+            var detalhe = await ObterProjetoPorIdAsync(id, ct);
+            var removido = await UsarServicoAsync<IProjetoService, bool>(s => s.RemoverAsync(id, ct), exigeAdmin: true);
+            if (removido && detalhe is not null)
+            {
+                RemoverArquivoLocalSeExistir(detalhe.ImagemUrl);
+            }
+            return removido;
+        }
 
         using var req = CriarRequisicao(HttpMethod.Delete, $"/api/projetos/{id}");
         using var resposta = await _http!.SendAsync(req, ct);
@@ -415,5 +429,87 @@ public class HubApiClient
         resposta.EnsureSuccessStatusCode();
         return await resposta.Content.ReadFromJsonAsync<PerfilDto>(cancellationToken: ct)
             ?? throw new InvalidOperationException("Falha ao atualizar perfil na API.");
+    }
+
+    // ==========================================
+    // UPLOAD DE MÍDIA (WWWROOT/UPLOADS)
+    // ==========================================
+    public async Task<string> SalvarUploadMidiaAsync(
+        Stream arquivoStream,
+        string nomeArquivoOriginal,
+        string subpasta,
+        string? urlAnterior = null,
+        CancellationToken ct = default)
+    {
+        if (!_adminState.EstaAutenticado)
+        {
+            throw new UnauthorizedAccessException("Operação restrita para administradores autenticados.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_webRootPath))
+        {
+            throw new InvalidOperationException("Diretório wwwroot não configurado para upload local.");
+        }
+
+        var extensoesPermitidas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".gif", ".webp", ".png", ".jpg", ".jpeg"
+        };
+
+        var extensao = Path.GetExtension(nomeArquivoOriginal);
+        if (string.IsNullOrWhiteSpace(extensao) || !extensoesPermitidas.Contains(extensao))
+        {
+            extensao = ".gif";
+        }
+        else
+        {
+            extensao = extensao.ToLowerInvariant();
+        }
+
+        var pastaDestino = Path.Combine(_webRootPath, "uploads", subpasta);
+        Directory.CreateDirectory(pastaDestino);
+
+        var nomeUnico = $"{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}{extensao}";
+        var caminhoCompleto = Path.Combine(pastaDestino, nomeUnico);
+
+        await using (var fs = new FileStream(
+            caminhoCompleto,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            bufferSize: 64 * 1024,
+            useAsync: true))
+        {
+            await arquivoStream.CopyToAsync(fs, 64 * 1024, ct);
+        }
+
+        RemoverArquivoLocalSeExistir(urlAnterior);
+
+        return $"/uploads/{subpasta}/{nomeUnico}";
+    }
+
+    public void RemoverArquivoLocalSeExistir(string? urlRelativa)
+    {
+        if (string.IsNullOrWhiteSpace(_webRootPath) || string.IsNullOrWhiteSpace(urlRelativa))
+            return;
+
+        if (!urlRelativa.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        try
+        {
+            var caminhoRelativo = urlRelativa.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var caminhoCompleto = Path.GetFullPath(Path.Combine(_webRootPath, caminhoRelativo));
+            var pastaUploads = Path.GetFullPath(Path.Combine(_webRootPath, "uploads"));
+
+            if (caminhoCompleto.StartsWith(pastaUploads, StringComparison.OrdinalIgnoreCase) && File.Exists(caminhoCompleto))
+            {
+                File.Delete(caminhoCompleto);
+            }
+        }
+        catch
+        {
+            // Ignora falha ao remover arquivo antigo
+        }
     }
 }

@@ -28,6 +28,84 @@ public class DbInitializer
     }
 
     /// <summary>
+    /// Converte qualquer imagem/GIF armazenada como Data URI Base64 no banco para arquivo físico
+    /// em wwwroot/uploads/ para evitar tráfego pesado de strings gigantes no SQL Server e no HTML.
+    /// </summary>
+    public async Task MigrarBase64ParaArquivosAsync(string? webRootPath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(webRootPath))
+            return;
+
+        var alterou = false;
+
+        var perfisBase64 = await _db.Perfis
+            .Where(p => p.FotoUrl != null && p.FotoUrl.StartsWith("data:image/"))
+            .ToListAsync(ct);
+
+        foreach (var perfil in perfisBase64)
+        {
+            var urlArquivo = SalvarDataUriEmDisco(perfil.FotoUrl!, webRootPath, "perfil");
+            if (urlArquivo is not null)
+            {
+                perfil.FotoUrl = urlArquivo;
+                alterou = true;
+            }
+        }
+
+        var projetosBase64 = await _db.Projetos
+            .Where(p => p.ImagemUrl != null && p.ImagemUrl.StartsWith("data:image/"))
+            .ToListAsync(ct);
+
+        foreach (var projeto in projetosBase64)
+        {
+            var urlArquivo = SalvarDataUriEmDisco(projeto.ImagemUrl!, webRootPath, "projetos");
+            if (urlArquivo is not null)
+            {
+                projeto.ImagemUrl = urlArquivo;
+                alterou = true;
+            }
+        }
+
+        if (alterou)
+        {
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Mídias em Base64 foram convertidas automaticamente para arquivos físicos em wwwroot/uploads/.");
+        }
+    }
+
+    private string? SalvarDataUriEmDisco(string dataUri, string webRootPath, string subpasta)
+    {
+        try
+        {
+            var indiceVirgula = dataUri.IndexOf(',');
+            if (indiceVirgula <= 0) return null;
+
+            var cabecalho = dataUri[..indiceVirgula];
+            var base64 = dataUri[(indiceVirgula + 1)..];
+
+            var extensao = ".png";
+            if (cabecalho.Contains("image/gif", StringComparison.OrdinalIgnoreCase)) extensao = ".gif";
+            else if (cabecalho.Contains("image/webp", StringComparison.OrdinalIgnoreCase)) extensao = ".webp";
+            else if (cabecalho.Contains("image/jpeg", StringComparison.OrdinalIgnoreCase) || cabecalho.Contains("image/jpg", StringComparison.OrdinalIgnoreCase)) extensao = ".jpg";
+
+            var bytes = Convert.FromBase64String(base64);
+            var pastaDestino = Path.Combine(webRootPath, "uploads", subpasta);
+            Directory.CreateDirectory(pastaDestino);
+
+            var nomeUnico = $"{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}{extensao}";
+            var caminhoCompleto = Path.Combine(pastaDestino, nomeUnico);
+
+            File.WriteAllBytes(caminhoCompleto, bytes);
+            return $"/uploads/{subpasta}/{nomeUnico}";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não foi possível converter mídia Base64 para arquivo em {Subpasta}.", subpasta);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Aplica automaticamente as migrations pendentes (somente quando o provider é SQL Server,
     /// evitando erro em providers como InMemory usados em testes).
     /// </summary>
@@ -190,4 +268,3 @@ public class DbInitializer
     private static Tecnologia Tec(string nome, CategoriaTecnologia cat, NivelTecnologia nivel, string icone, int ordem) =>
         new() { Nome = nome, Categoria = cat, Nivel = nivel, IconeClasse = icone, Ordem = ordem };
 }
-

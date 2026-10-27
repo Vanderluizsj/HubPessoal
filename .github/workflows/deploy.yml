@@ -76,12 +76,20 @@ jobs:
           Set-Content -Path "./publish/appsettings.Production.json" -Value $json -Encoding UTF8
           Write-Host "Arquivos appsettings.json e appsettings.Production.json gerados com sucesso para o deploy."
 
-      - name: 8. Deploy para MonsterASP.NET via WebDeploy
-        uses: rasmusbuchholdt/simply-web-deploy@2.2.0
-        with:
-          website-name: ${{ secrets.WEBSITE_NAME }}
-          server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
-          server-username: ${{ secrets.SERVER_USERNAME }}
-          server-password: ${{ secrets.SERVER_PASSWORD }}
-          source-path: '\publish\'
-
+      - name: 8. Deploy para MonsterASP.NET via WebDeploy (preservando wwwroot/uploads)
+        shell: cmd
+        env:
+          WEBSITE_NAME: ${{ secrets.WEBSITE_NAME }}
+          SERVER_COMPUTER_NAME: ${{ secrets.SERVER_COMPUTER_NAME }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          "C:\Program Files\IIS\Microsoft Web Deploy V3\msdeploy.exe" ^
+            -source:IisApp="%GITHUB_WORKSPACE%\publish\" ^
+            -dest:iisApp="%WEBSITE_NAME%",computerName="%SERVER_COMPUTER_NAME%",userName="%SERVER_USERNAME%",password="%SERVER_PASSWORD%",authtype="Basic",includeAcls="False" ^
+            -verb:sync ^
+            -enableLink:AppPoolExtension ^
+            -enableRule:AppOffline ^
+            -enableRule:DoNotDeleteRule ^
+            -allowUntrusted ^
+            -retryAttempts:2

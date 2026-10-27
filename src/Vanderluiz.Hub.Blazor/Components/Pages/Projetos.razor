@@ -1,18 +1,21 @@
 @page "/admin/projetos"
 @inject HubApiClient Api
 @inject AdminStateService AdminState
+@implements IDisposable
 @using Microsoft.AspNetCore.Components.Forms
+@using Vanderluiz.Hub.Application.DTOs
+@using Vanderluiz.Hub.Domain.Enums
 @using Vanderluiz.Hub.Blazor.Components.Shared
 
-<PageTitle>Gerenciar Projetos · Hub Admin</PageTitle>
+<PageTitle>Projetos · Hub Admin</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <div>
-        <h1 class="h3 fw-bold mb-1">Gerenciador de Projetos</h1>
-        <p class="texto-suave mb-0">Cadastre, edite ou remova projetos e suas prévias em GIF/imagem exibidos no portfólio.</p>
+        <h1 class="h3 fw-bold mb-1">Gerenciar Projetos</h1>
+        <p class="texto-suave mb-0">Cadastre, edite ou exclua projetos exibidos no portfólio público.</p>
     </div>
-    <button class="btn btn-hub" @onclick="TentarCriarProjeto">
-        <i class="bi bi-plus-lg me-1"></i> Novo Projeto
+    <button class="btn btn-hub d-flex align-items-center gap-2" @onclick="TentarCriarProjeto">
+        <i class="bi bi-plus-lg"></i> Novo Projeto
     </button>
 </div>
 
@@ -21,7 +24,7 @@
     <div class="alert alert-info py-2 px-3 small d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
         <div>
             <i class="bi bi-info-circle me-1"></i>
-            Você está no <strong>Modo Leitura (Portfólio)</strong>. Para testar a inclusão, alteração ou exclusão de dados, ative o acesso de Administrador.
+            Você está no <strong>Modo Leitura (Portfólio)</strong>. Ao clicar em criar, editar ou excluir, será solicitada a chave de Administrador.
         </div>
         <button class="btn btn-sm btn-outline-info" @onclick="() => exibirLoginModal = true">Ativar Admin</button>
     </div>
@@ -37,41 +40,45 @@
 
 <!-- FILTRO DE BUSCA -->
 <div class="hub-card p-3 mb-4">
-    <div class="input-group">
-        <span class="input-group-text bg-transparent border-end-0 text-white-50"><i class="bi bi-search"></i></span>
-        <input type="text" class="form-control border-start-0" placeholder="Buscar projeto por título ou tecnologia..."
-               @bind="termoBusca" @bind:event="oninput" />
+    <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0 text-secondary">
+                    <i class="bi bi-search"></i>
+                </span>
+                <input type="text" class="form-control border-start-0"
+                       placeholder="Filtrar por título, resumo ou tecnologia..."
+                       @bind="termoBusca" @bind:event="oninput" />
+            </div>
+        </div>
+        <div class="col-md-6 text-md-end texto-suave small">
+            Exibindo <strong>@ProjetosFiltrados.Count()</strong> de <strong>@projetos.Count</strong> projeto(s)
+        </div>
     </div>
 </div>
 
 @if (carregando)
 {
-    <div class="d-flex justify-content-center p-5">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Carregando projetos...</span>
-        </div>
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="texto-suave mt-2">Carregando projetos...</p>
     </div>
 }
 else
 {
-    var filtrados = projetos
-        .Where(p => string.IsNullOrWhiteSpace(termoBusca) ||
-                    p.Titulo.Contains(termoBusca, StringComparison.OrdinalIgnoreCase) ||
-                    p.Tecnologias.Any(t => t.Nome.Contains(termoBusca, StringComparison.OrdinalIgnoreCase)))
-        .ToList();
-
-    if (filtrados.Count == 0)
+    var lista = ProjetosFiltrados.ToList();
+    @if (lista.Count == 0)
     {
         <div class="hub-card p-5 text-center">
-            <i class="bi bi-inbox fs-1 texto-suave mb-2"></i>
-            <p class="texto-suave mb-0">Nenhum projeto encontrado.</p>
+            <i class="bi bi-folder-x fs-1 texto-suave"></i>
+            <p class="mt-2 mb-0 texto-suave">Nenhum projeto encontrado.</p>
         </div>
     }
     else
     {
-        <div class="hub-card">
+        <div class="hub-card overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hub align-middle">
+                <table class="table table-dark table-hover align-middle mb-0">
                     <thead>
                         <tr>
                             <th style="width: 72px;">Prévia</th>
@@ -83,7 +90,7 @@ else
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var p in filtrados)
+                        @foreach (var p in lista)
                         {
                             <tr>
                                 <td>
@@ -91,19 +98,19 @@ else
                                     {
                                         <img src="@p.ImagemUrl" alt="@p.Titulo"
                                              class="rounded border border-secondary"
-                                             style="width: 56px; height: 36px; object-fit: cover;" />
+                                             style="width: 56px; height: 38px; object-fit: cover;" />
                                     }
                                     else
                                     {
-                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-white-50"
-                                             style="width: 56px; height: 36px;">
+                                        <div class="rounded bg-secondary bg-opacity-25 d-flex align-items-center justify-content-center text-info"
+                                             style="width: 56px; height: 38px;">
                                             <i class="bi bi-code-slash"></i>
                                         </div>
                                     }
                                 </td>
                                 <td>
                                     <div class="fw-semibold">@p.Titulo</div>
-                                    <small class="texto-suave">/@p.Slug</small>
+                                    <div class="small texto-suave text-truncate" style="max-width: 340px;">@p.Resumo</div>
                                 </td>
                                 <td>
                                     <span class="status-badge @ObterCssStatus(p.Status)">@p.Status</span>
@@ -115,24 +122,30 @@ else
                                     }
                                     else
                                     {
-                                        <span class="texto-suave">Não</span>
+                                        <span class="texto-suave small">Não</span>
                                     }
                                 </td>
                                 <td>
                                     <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var t in p.Tecnologias)
+                                        @foreach (var t in p.Tecnologias.Take(4))
                                         {
-                                            <span class="tag">@t.Nome</span>
+                                            <span class="tec-chip">@t.Nome</span>
+                                        }
+                                        @if (p.Tecnologias.Count > 4)
+                                        {
+                                            <span class="tec-chip">+@(p.Tecnologias.Count - 4)</span>
                                         }
                                     </div>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-info me-1" title="Editar" @onclick="() => TentarEditar(p.Id)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger" title="Excluir" @onclick="() => TentarExcluir(p)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-hub-outline" title="Editar" @onclick="() => TentarEditar(p.Id)">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" title="Excluir" @onclick="() => TentarExcluir(p)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -209,10 +222,10 @@ else
                                                        class="form-control form-control-sm mb-2"
                                                        disabled="@lendoMidia" />
 
-                                            @if (EhBase64(inputModel.ImagemUrl))
+                                            @if (EhUploadLocalOuBase64(inputModel.ImagemUrl))
                                             {
-                                                <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate">
-                                                    <i class="bi bi-check-circle-fill me-1"></i> GIF / Imagem carregado via Upload
+                                                <div class="badge bg-success bg-opacity-25 text-success border border-success p-2 w-100 text-truncate" title="@inputModel.ImagemUrl">
+                                                    <i class="bi bi-check-circle-fill me-1"></i> Salvo em @inputModel.ImagemUrl
                                                 </div>
                                             }
                                             else
@@ -224,13 +237,13 @@ else
                                             }
 
                                             <small class="texto-suave d-block mt-1" style="font-size: 0.75rem;">
-                                                Envie um <strong>.gif</strong> (prévia animada), <strong>.webp</strong>, <strong>.png</strong> ou <strong>.jpg</strong> (máx. 10 MB).
+                                                Envie um <strong>.gif</strong> (prévia animada), <strong>.webp</strong>, <strong>.png</strong> ou <strong>.jpg</strong> (máx. 10 MB). Salvo em <code>/uploads/projetos/</code>.
                                             </small>
 
                                             @if (lendoMidia)
                                             {
                                                 <div class="mt-2 small text-info d-flex align-items-center gap-2">
-                                                    <span class="spinner-border spinner-border-sm"></span> Carregando GIF / imagem...
+                                                    <span class="spinner-border spinner-border-sm"></span> Salvando GIF / imagem no servidor...
                                                 </div>
                                             }
                                             @if (!string.IsNullOrEmpty(erroMidia))
@@ -363,16 +376,35 @@ else
     private ProjetoInputDto inputModel = new();
     private ProjetoResumoDto? projetoParaExcluir;
 
+    private IEnumerable<ProjetoResumoDto> ProjetosFiltrados =>
+        string.IsNullOrWhiteSpace(termoBusca)
+            ? projetos
+            : projetos.Where(p =>
+                p.Titulo.Contains(termoBusca, StringComparison.OrdinalIgnoreCase) ||
+                p.Resumo.Contains(termoBusca, StringComparison.OrdinalIgnoreCase) ||
+                p.Tecnologias.Any(t => t.Nome.Contains(termoBusca, StringComparison.OrdinalIgnoreCase)));
+
     protected override async Task OnInitializedAsync()
     {
+        AdminState.OnChange += HandleAdminStateChanged;
         await CarregarDadosAsync();
     }
 
-    private static bool EhBase64(string? valor) =>
-        !string.IsNullOrWhiteSpace(valor) && valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase);
+    private void HandleAdminStateChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        AdminState.OnChange -= HandleAdminStateChanged;
+    }
+
+    private static bool EhUploadLocalOuBase64(string? valor) =>
+        !string.IsNullOrWhiteSpace(valor) &&
+        (valor.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ||
+         valor.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase));
 
     private void RemoverMidiaProjeto()
     {
+        Api.RemoverArquivoLocalSeExistir(inputModel.ImagemUrl);
         inputModel.ImagemUrl = null;
         erroMidia = null;
     }
@@ -392,17 +424,12 @@ else
         try
         {
             lendoMidia = true;
-            var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/gif" : arquivo.ContentType;
             await using var stream = arquivo.OpenReadStream(TamanhoMaximoMidiaBytes);
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-
-            var base64 = Convert.ToBase64String(ms.ToArray());
-            inputModel.ImagemUrl = $"data:{contentType};base64,{base64}";
+            inputModel.ImagemUrl = await Api.SalvarUploadMidiaAsync(stream, arquivo.Name, "projetos", inputModel.ImagemUrl);
         }
         catch (Exception ex)
         {
-            erroMidia = $"Falha ao ler o arquivo: {ex.Message}";
+            erroMidia = $"Falha ao salvar o arquivo: {ex.Message}";
         }
         finally
         {

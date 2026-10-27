@@ -1,5 +1,6 @@
 @inject AdminStateService AdminState
 @inject HubApiClient Api
+@inject IJSRuntime JS
 
 @if (Exibir)
 {
@@ -78,10 +79,20 @@
             validando = true;
             mensagemErro = null;
 
-            var valido = await Api.ValidarLoginAsync(chaveDigitada);
+            var chaveLimpa = chaveDigitada.Trim();
+            var valido = await Api.ValidarLoginAsync(chaveLimpa);
             if (valido)
             {
-                AdminState.DefinirAutenticado(chaveDigitada);
+                try
+                {
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "hub_admin_key", chaveLimpa);
+                }
+                catch
+                {
+                    // Ignora falha de JS
+                }
+
+                AdminState.DefinirAutenticado(chaveLimpa);
                 await FecharAsync();
             }
             else

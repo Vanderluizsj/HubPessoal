@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 @inject AdminStateService AdminState
+@inject HubApiClient Api
+@inject IJSRuntime JS
 @implements IDisposable
 
 <div class="page">
@@ -27,7 +29,7 @@
             <div class="d-flex align-items-center gap-3">
                 @if (AdminState.EstaAutenticado)
                 {
-                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" @onclick="AdminState.Sair">
+                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" @onclick="SairAdminAsync">
                         <i class="bi bi-box-arrow-right"></i> Sair do Admin
                     </button>
                 }
@@ -59,11 +61,54 @@
 
     protected override void OnInitialized()
     {
-        AdminState.OnChange += StateHasChanged;
+        AdminState.OnChange += HandleAdminStateChanged;
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !AdminState.EstaAutenticado)
+        {
+            try
+            {
+                var chaveSalva = await JS.InvokeAsync<string?>("sessionStorage.getItem", "hub_admin_key");
+                if (!string.IsNullOrWhiteSpace(chaveSalva))
+                {
+                    var valido = await Api.ValidarLoginAsync(chaveSalva);
+                    if (valido)
+                    {
+                        AdminState.DefinirAutenticado(chaveSalva);
+                    }
+                    else
+                    {
+                        await JS.InvokeVoidAsync("sessionStorage.removeItem", "hub_admin_key");
+                    }
+                }
+            }
+            catch
+            {
+                // Ignora caso sessionStorage não esteja acessível
+            }
+        }
+    }
+
+    private async Task SairAdminAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("sessionStorage.removeItem", "hub_admin_key");
+        }
+        catch
+        {
+            // Ignora falha de JS
+        }
+
+        AdminState.Sair();
+    }
+
+    private void HandleAdminStateChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
-        AdminState.OnChange -= StateHasChanged;
+        AdminState.OnChange -= HandleAdminStateChanged;
     }
 }

@@ -38,18 +38,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Aumenta o limite de mensagens SignalR (20 MB) para suportar upload de GIFs de até 10 MB em Base64 no painel admin
-builder.Services.AddSignalR(options =>
-{
-    options.MaximumReceiveMessageSize = 20 * 1024 * 1024;
-});
-
-// Serviços de autenticação e dados do Blazor
+// Serviços de autenticação e dados do Blazor (com WebRootPath para gravação direta em wwwroot/uploads)
 builder.Services.AddScoped<AdminStateService>();
 builder.Services.AddScoped(sp => new HubApiClient(
     sp.GetRequiredService<AdminStateService>(),
     sp.GetRequiredService<IServiceScopeFactory>(),
-    sp.GetRequiredService<IConfiguration>()));
+    sp.GetRequiredService<IConfiguration>(),
+    builder.Environment.WebRootPath));
 
 // Configurações e Provedores do Perfil
 builder.Services.Configure<PerfilOptions>(builder.Configuration.GetSection(PerfilOptions.Secao));
@@ -100,6 +95,7 @@ if (!usarApi && app.Configuration.GetValue("Database:InicializarAoIniciar", true
     {
         var initializer = scope.ServiceProvider.GetRequiredService<DbInitializer>();
         await initializer.InicializarAsync();
+        await initializer.MigrarBase64ParaArquivosAsync(app.Environment.WebRootPath);
     }
     catch (Exception ex)
     {
@@ -132,6 +128,19 @@ if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+// Serve arquivos enviados dinamicamente em wwwroot/uploads/ com cache de 7 dias
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.Context.Request.Path.StartsWithSegments("/uploads"))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=604800";
+        }
+    }
+});
+
 app.UseRouting();
 
 app.UseAuthorization();
