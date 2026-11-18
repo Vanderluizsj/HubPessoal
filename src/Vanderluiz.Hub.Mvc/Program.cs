@@ -31,10 +31,13 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddControllersWithViews()
     .AddApplicationPart(typeof(ProjetosController).Assembly);
 
-// Suporte a OpenAPI e documentação interativa Scalar
-builder.Services.AddOpenApi();
+// Suporte a OpenAPI e documentação interativa Scalar (somente em desenvolvimento)
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddOpenApi();
+}
 
-// Blazor Server Interativo (para o painel /admin)
+// Blazor Server Interativo (para o painel /admin-v4n3r)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -146,14 +149,17 @@ app.UseRouting();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-// Documentação da API (Scalar em /scalar/v1 e OpenAPI em /openapi/v1.json)
-app.MapOpenApi();
-app.MapScalarApiReference(options =>
+// Documentação da API (Scalar em /scalar/v1 e OpenAPI em /openapi/v1.json) restrita ao ambiente de desenvolvimento
+if (app.Environment.IsDevelopment())
 {
-    options.Title = "Vanderluiz Hub API";
-    options.Theme = ScalarTheme.Purple;
-    options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
-});
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.Title = "Vanderluiz Hub API";
+        options.Theme = ScalarTheme.Purple;
+        options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
+}
 
 // Arquivos Estáticos (.NET 10 Static Assets)
 app.MapStaticAssets();
@@ -161,7 +167,7 @@ app.MapStaticAssets();
 // Endpoints da Web API (/api/projetos, /api/auth, etc.)
 app.MapControllers();
 
-// Painel Administrativo Blazor Interactive Server (/admin)
+// Painel Administrativo Blazor Interactive Server (/admin-v4n3r)
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

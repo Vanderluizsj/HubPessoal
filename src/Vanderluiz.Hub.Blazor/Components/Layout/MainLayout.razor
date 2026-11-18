@@ -4,51 +4,98 @@
 @inject IJSRuntime JS
 @implements IDisposable
 
-<div class="page">
-    <aside class="sidebar">
-        <NavMenu />
-    </aside>
+@if (!verificacaoInicialConcluida)
+{
+    <div class="d-flex flex-column justify-content-center align-items-center min-vh-100" style="background: var(--hub-bg);">
+        <div class="spinner-border text-info mb-3" role="status"></div>
+        <span class="texto-suave small">Verificando sessão administrativa...</span>
+    </div>
+}
+else if (!AdminState.EstaAutenticado)
+{
+    <!-- TELA DE BLOQUEIO OBRIGATÓRIA (SEM MODO LEITURA PÚBLICO) -->
+    <div class="d-flex justify-content-center align-items-center min-vh-100 p-3" style="background: var(--hub-bg);">
+        <div class="hub-card p-4 p-md-5 w-100" style="max-width: 440px;">
+            <div class="text-center mb-4">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle mb-3"
+                     style="width: 64px; height: 64px; background: rgba(34, 211, 238, 0.12); border: 1px solid rgba(34, 211, 238, 0.3);">
+                    <i class="bi bi-shield-lock-fill text-info fs-2"></i>
+                </div>
+                <h1 class="h4 fw-bold text-white mb-1">Acesso Restrito</h1>
+                <p class="texto-suave small mb-0">Informe sua credencial administrativa para acessar o painel.</p>
+            </div>
 
-    <main>
-        <header class="admin-header">
-            <div class="d-flex align-items-center gap-2">
-                @if (AdminState.EstaAutenticado)
+            @if (!string.IsNullOrEmpty(mensagemErro))
+            {
+                <div class="alert alert-danger py-2 small mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <div>@mensagemErro</div>
+                </div>
+            }
+
+            <div class="mb-3">
+                <label class="form-label small fw-semibold text-white-50">Chave de Acesso</label>
+                <input type="password"
+                       class="form-control"
+                       placeholder="Digite sua chave de admin..."
+                       @bind="chaveDigitada"
+                       @onkeydown="HandleKeyDownAsync"
+                       disabled="@(validando || EstaBloqueado)"
+                       autofocus />
+            </div>
+
+            <button type="button"
+                    class="btn btn-hub w-100 d-flex justify-content-center align-items-center gap-2 py-2"
+                    @onclick="TentarAutenticarAsync"
+                    disabled="@(validando || EstaBloqueado || string.IsNullOrWhiteSpace(chaveDigitada))">
+                @if (validando)
                 {
-                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 d-flex align-items-center gap-1">
-                        <i class="bi bi-shield-check"></i> Modo Administrador
-                    </span>
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span>Validando...</span>
                 }
                 else
                 {
-                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 d-flex align-items-center gap-1">
-                        <i class="bi bi-eye"></i> Modo Leitura (Portfólio)
-                    </span>
+                    <i class="bi bi-key-fill"></i>
+                    <span>Entrar no Painel</span>
                 }
-            </div>
+            </button>
 
-            <div class="d-flex align-items-center gap-3">
-                @if (AdminState.EstaAutenticado)
-                {
+            <div class="text-center mt-4 pt-3 border-top border-secondary border-opacity-25">
+                <a href="/" class="small texto-suave text-decoration-none">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar ao portfólio
+                </a>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="page">
+        <aside class="sidebar">
+            <NavMenu />
+        </aside>
+
+        <main>
+            <header class="admin-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 d-flex align-items-center gap-1">
+                        <i class="bi bi-shield-check"></i> Sessão Administrativa Ativa
+                    </span>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
                     <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" @onclick="SairAdminAsync">
                         <i class="bi bi-box-arrow-right"></i> Sair do Admin
                     </button>
-                }
-                else
-                {
-                    <button class="btn btn-sm btn-hub d-flex align-items-center gap-1" @onclick="() => exibirLoginModal = true">
-                        <i class="bi bi-key-fill"></i> Acesso Admin
-                    </button>
-                }
-            </div>
-        </header>
+                </div>
+            </header>
 
-        <article class="content">
-            @Body
-        </article>
-    </main>
-</div>
-
-<AdminLoginModal @bind-Exibir="exibirLoginModal" />
+            <article class="content">
+                @Body
+            </article>
+        </main>
+    </div>
+}
 
 <div id="blazor-error-ui" data-nosnippet>
     Ocorreu um erro não tratado.
@@ -57,7 +104,16 @@
 </div>
 
 @code {
-    private bool exibirLoginModal = false;
+    private const int MaxTentativas = 5;
+    private static int tentativasFalhas = 0;
+    private static DateTime? bloqueadoAteUtc;
+
+    private bool verificacaoInicialConcluida = false;
+    private string chaveDigitada = string.Empty;
+    private string? mensagemErro;
+    private bool validando = false;
+
+    private bool EstaBloqueado => bloqueadoAteUtc.HasValue && DateTime.UtcNow < bloqueadoAteUtc.Value;
 
     protected override void OnInitialized()
     {
@@ -66,28 +122,108 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !AdminState.EstaAutenticado)
+        if (firstRender)
         {
-            try
+            if (!AdminState.EstaAutenticado)
             {
-                var chaveSalva = await JS.InvokeAsync<string?>("sessionStorage.getItem", "hub_admin_key");
-                if (!string.IsNullOrWhiteSpace(chaveSalva))
+                try
                 {
-                    var valido = await Api.ValidarLoginAsync(chaveSalva);
-                    if (valido)
+                    var chaveSalva = await JS.InvokeAsync<string?>("sessionStorage.getItem", "hub_admin_key");
+                    if (!string.IsNullOrWhiteSpace(chaveSalva))
                     {
-                        AdminState.DefinirAutenticado(chaveSalva);
-                    }
-                    else
-                    {
-                        await JS.InvokeVoidAsync("sessionStorage.removeItem", "hub_admin_key");
+                        var valido = await Api.ValidarLoginAsync(chaveSalva);
+                        if (valido)
+                        {
+                            AdminState.DefinirAutenticado(chaveSalva);
+                        }
+                        else
+                        {
+                            await JS.InvokeVoidAsync("sessionStorage.removeItem", "hub_admin_key");
+                        }
                     }
                 }
+                catch
+                {
+                    // Ignora caso sessionStorage não esteja acessível
+                }
             }
-            catch
+
+            verificacaoInicialConcluida = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TentarAutenticarAsync()
+    {
+        if (EstaBloqueado)
+        {
+            var restante = (int)Math.Ceiling((bloqueadoAteUtc!.Value - DateTime.UtcNow).TotalMinutes);
+            mensagemErro = $"Muitas tentativas inválidas. Aguarde {Math.Max(1, restante)} minuto(s).";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(chaveDigitada))
+        {
+            mensagemErro = "Por favor, digite a chave de acesso.";
+            return;
+        }
+
+        try
+        {
+            validando = true;
+            mensagemErro = null;
+
+            var chaveLimpa = chaveDigitada.Trim();
+            var valido = await Api.ValidarLoginAsync(chaveLimpa);
+            if (valido)
             {
-                // Ignora caso sessionStorage não esteja acessível
+                tentativasFalhas = 0;
+                bloqueadoAteUtc = null;
+                chaveDigitada = string.Empty;
+
+                try
+                {
+                    await JS.InvokeVoidAsync("sessionStorage.setItem", "hub_admin_key", chaveLimpa);
+                }
+                catch
+                {
+                    // Ignora falha de JS
+                }
+
+                AdminState.DefinirAutenticado(chaveLimpa);
             }
+            else
+            {
+                await Task.Delay(1200); // Atraso intencional contra força bruta
+                tentativasFalhas++;
+                chaveDigitada = string.Empty;
+
+                if (tentativasFalhas >= MaxTentativas)
+                {
+                    bloqueadoAteUtc = DateTime.UtcNow.AddMinutes(5);
+                    mensagemErro = "Limite de tentativas excedido. Acesso bloqueado por 5 minutos.";
+                }
+                else
+                {
+                    mensagemErro = "Credencial inválida.";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao validar acesso: {ex.Message}";
+        }
+        finally
+        {
+            validando = false;
+        }
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !validando && !string.IsNullOrWhiteSpace(chaveDigitada))
+        {
+            await TentarAutenticarAsync();
         }
     }
 
